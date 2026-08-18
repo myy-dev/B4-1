@@ -1,0 +1,2 @@
+$ ps -ef | grep -E 'agent_app.py|agent-app-linux-(x86|arm64)' | grep -v grep
+agent-a+  4237  4235  0 07:04 ?        00:00:00 python3 /home/agent-admin/agent-app/agent_app.py

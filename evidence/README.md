@@ -1,5 +1,11 @@
 # 증빙 자료
 
+재현 가능한 Ubuntu 22.04 컨테이너 증빙은 [`ubuntu-22.04/integration-20260818/`](ubuntu-22.04/integration-20260818/)에 포함되어 있습니다. Docker Desktop에서 새 증빙을 생성하려면 다음 명령을 실행합니다.
+
+```bash
+EVIDENCE_RUN_ID=integration make evidence-ubuntu
+```
+
 Ubuntu 시스템에 적용한 뒤 다음 명령으로 증빙을 생성합니다.
 
 ```bash

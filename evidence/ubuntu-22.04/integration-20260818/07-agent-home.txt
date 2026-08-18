@@ -1,0 +1,8 @@
+$ ls -la /home/agent-admin/agent-app
+total 28
+drwxrws---+ 5 agent-admin agent-core   4096 Aug 18 07:05 .
+drwxr-x---  3 agent-admin agent-admin  4096 Aug 18 07:04 ..
+-rwxr-x---  1 agent-admin agent-core   4710 Aug 18 07:05 agent_app.py
+drwxrws---+ 2 agent-admin agent-core   4096 Aug 18 07:05 api_keys
+drwxrws---  2 agent-dev   agent-core   4096 Aug 18 07:05 bin
+drwxrws---+ 2 agent-admin agent-common 4096 Aug 18 07:04 upload_files

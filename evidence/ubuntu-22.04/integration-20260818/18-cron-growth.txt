@@ -1,0 +1,3 @@
+monitor.log lines before verification wait: 1
+monitor.log lines after verification wait: 2
+Result: PASS (cron appended 1 line(s))

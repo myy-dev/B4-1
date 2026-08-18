@@ -1,0 +1,17 @@
+$ runuser -u agent-admin -- env CPU_USAGE_OVERRIDE=25.3 MEM_USAGE_OVERRIDE=11.0 DISK_USAGE_OVERRIDE=81.0 /home/agent-admin/agent-app/bin/run-monitor.sh
+====== SYSTEM MONITOR RESULT ======
+
+[HEALTH CHECK]
+Checking process 'agent_app.py|agent-app-linux-(x86|arm64)'... [OK] (PID: 4237)
+Checking port 15034... [OK]
+Checking firewall... [OK]
+
+[RESOURCE MONITORING]
+CPU Usage : 25.3%
+MEM Usage : 11.0%
+DISK Used : 81.0%
+[WARNING] CPU threshold exceeded (25.3% > 20%)
+[WARNING] MEM threshold exceeded (11.0% > 10%)
+[WARNING] DISK_USED threshold exceeded (81.0% > 80%)
+
+[INFO] Log appended: /var/log/agent-app/monitor.log

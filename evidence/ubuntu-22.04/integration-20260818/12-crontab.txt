@@ -1,0 +1,2 @@
+$ crontab -u agent-admin -l
+* * * * * /home/agent-admin/agent-app/bin/run-monitor.sh >> /var/log/agent-app/cron.log 2>&1 # agent-app-monitor

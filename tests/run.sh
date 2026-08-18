@@ -59,6 +59,29 @@ test_setup_dry_run() {
   assert_contains "$output" 'start application as agent-admin' 'Dry run plans non-root app startup'
 }
 
+test_setup_provided_binary_selection() {
+  local fixture_root binary_name output
+  fixture_root="${TEST_TMP}/provided-app-repo"
+  output="${TEST_TMP}/provided-app-selection.txt"
+  case "$(uname -m)" in
+    x86_64|amd64) binary_name='agent-app-linux-x86' ;;
+    arm64|aarch64) binary_name='agent-app-linux-arm64' ;;
+    *)
+      pass 'Provided application selection is skipped on an unsupported test architecture'
+      return
+      ;;
+  esac
+
+  mkdir -p "${fixture_root}/bin" "${fixture_root}/app" "${fixture_root}/config"
+  cp "${REPO_ROOT}/bin/setup-system.sh" "${fixture_root}/bin/setup-system.sh"
+  cp "${REPO_ROOT}/config/sshd-agent-app.conf" "${fixture_root}/config/sshd-agent-app.conf"
+  printf '%s\n' '#!/usr/bin/env bash' 'exit 0' >"${fixture_root}/app/${binary_name}"
+
+  "${fixture_root}/bin/setup-system.sh" --reset-firewall >"$output"
+  assert_contains "$output" "Selected provided application: ${binary_name}" \
+    'Setup prefers the provided binary for the current architecture'
+}
+
 make_fake_commands() {
   local fake_bin="${TEST_TMP}/fake-bin"
   mkdir -p "$fake_bin"
@@ -199,7 +222,7 @@ EOF
 }
 
 test_archive_retention() {
-  local log_dir archive_dir output
+  local log_dir archive_dir output fake_bin
   log_dir="${TEST_TMP}/retention-logs"
   archive_dir="${TEST_TMP}/retention-archive"
   output="${TEST_TMP}/retention.txt"
@@ -214,10 +237,23 @@ test_archive_retention() {
   AGENT_LOG_DIR="$log_dir" ARCHIVE_DIR="$archive_dir" DELETE_ALL=1 \
     "${REPO_ROOT}/bin/archive-logs.sh" >>"$output"
   [[ ! -e "${archive_dir}/old.log.gz" ]] && pass 'Expired archives are deleted' || fail 'Expired archive remains'
+  assert_contains "$output" 'No log files were old enough to archive' 'No matching log files are handled safely'
 
   AGENT_LOG_DIR="${TEST_TMP}/missing-log-dir" ARCHIVE_DIR="$archive_dir" \
     "${REPO_ROOT}/bin/archive-logs.sh" >"${TEST_TMP}/retention-missing.txt"
   assert_contains "${TEST_TMP}/retention-missing.txt" '[WARNING] Log directory does not exist' 'Missing log directory is handled safely'
+
+  fake_bin="${TEST_TMP}/retention-fake-bin"
+  mkdir -p "$fake_bin"
+  cat >"${fake_bin}/mkdir" <<'EOF'
+#!/usr/bin/env bash
+exit 1
+EOF
+  chmod +x "${fake_bin}/mkdir"
+  PATH="${fake_bin}:$PATH" AGENT_LOG_DIR="$log_dir" ARCHIVE_DIR="${TEST_TMP}/permission-denied" \
+    "${REPO_ROOT}/bin/archive-logs.sh" >"${TEST_TMP}/retention-permission.txt"
+  assert_contains "${TEST_TMP}/retention-permission.txt" '[WARNING] Cannot create archive directory' \
+    'Archive permission failures are handled safely'
 }
 
 test_reference_app() {
@@ -255,6 +291,7 @@ test_reference_app() {
 
 test_syntax
 test_setup_dry_run
+test_setup_provided_binary_selection
 test_monitor_success_and_warnings
 test_monitor_all_warning_paths
 test_monitor_unprivileged_ufw_fallback
