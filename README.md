@@ -21,15 +21,17 @@
 ## 실행 환경 (Environment)
 
 - **운영체제**: Ubuntu 22.04 LTS 또는 동등한 Linux 환경
+- **실습 환경**: 이전 미션에서 구성한 Linux 컨테이너 또는 VM 재사용 권장
 - **스크립트 언어**: Bash
 - **실행 애플리케이션**: 제공된 Python 애플리케이션
-- **서비스 관리 도구**: OpenSSH, UFW 또는 firewalld, cron
+- **보안·운영·자동화 도구**: OpenSSH, UFW 또는 firewalld, cron
 - **권한 관리 도구**: Linux 사용자·그룹 권한, ACL
-- **제공 실행 파일**: `agent-app-linux-x86`, `agent-app-linux-arm64`(Apple Silicon)
+- **제공 데이터**: `agent-app.zip`
+- **제공 실행 파일**: `agent-app-linux-x86`, `agent-app-linux-arm64`(Apple Silicon 기반 Linux VM·컨테이너 등 ARM64 Linux 환경용)
 
 ## 프로젝트 구조 (Project Structure)
 
-아래는 제출 결과물의 권장 구조입니다. 비밀 키 파일은 저장소에 커밋하지 않습니다.
+아래는 제출 결과물의 권장 구조입니다.
 
 ```text
 .
@@ -84,7 +86,7 @@ $AGENT_HOME/
 - [ ] `api_keys`와 `/var/log/agent-app`의 그룹을 `agent-core`로 설정
 - [ ] `api_keys`와 `/var/log/agent-app`에 `agent-core` 구성원만 읽기·쓰기 가능하도록 설정
 - [ ] 필요 시 ACL을 적용해 디렉토리별 접근 권한 고정
-- [ ] `id`, `ls -l`, `getfacl`로 계정·그룹·권한 확인
+- [ ] `id`, `ls -l`로 계정·그룹·권한 확인하고 ACL 사용 시 `getfacl`로 추가 확인
 
 ### 애플리케이션 실행 환경
 
@@ -92,13 +94,15 @@ $AGENT_HOME/
 - [ ] `AGENT_PORT=15034` 설정
 - [ ] `AGENT_UPLOAD_DIR=$AGENT_HOME/upload_files` 설정
 - [ ] `AGENT_KEY_PATH=$AGENT_HOME/api_keys/t_secret.key` 설정
-- [ ] `AGENT_LOG_DIR=/var/log/agent-app` 설정
+- [ ] (권장) `AGENT_LOG_DIR=/var/log/agent-app` 설정(미지정 시 같은 경로를 기본값으로 사용)
 - [ ] `$AGENT_HOME/api_keys/t_secret.key` 파일 생성
 - [ ] 키 파일에 과제용 값 `agent_api_key_test`를 한 줄로 저장
 - [ ] 애플리케이션을 Root가 아닌 일반 계정으로 실행
 - [ ] Boot Sequence 5단계가 모두 `[OK]`인지 확인
 - [ ] 마지막 출력에서 `Agent READY` 확인
 - [ ] 애플리케이션이 `0.0.0.0:15034`에서 LISTEN 상태인지 확인
+
+> 애플리케이션을 종료할 때는 `Ctrl+C`를 사용합니다.
 
 ### 시스템 관제 자동화 (`monitor.sh`)
 
@@ -125,9 +129,12 @@ $AGENT_HOME/
 ### 자동 실행 (`cron`)
 
 - [ ] `agent-admin` 계정의 crontab에 `monitor.sh` 매분 실행 등록
-- [ ] cron 실행 시 필요한 환경 변수를 명시적으로 설정
 - [ ] 등록 후 1~2분 내 `monitor.log`에 새 로그가 추가되는지 확인
-- [ ] cron 실행 중 권한 오류나 경로 오류가 없는지 확인
+
+#### 권장 점검
+
+- cron 실행 환경에 필요한 환경 변수를 명시적으로 설정합니다.
+- cron 실행 중 권한 오류나 경로 오류가 없는지 확인합니다.
 
 ### 요구사항 수행 내역서 및 증빙
 
@@ -158,10 +165,14 @@ $AGENT_HOME/
 - **권한 원칙**: 필요한 경우에만 `sudo`를 사용하고 가능한 작업은 일반 계정으로 수행합니다.
 - **애플리케이션 범위**: 제공된 Python 앱은 실행 대상이며 과제의 핵심은 관제 및 자동화 스크립트 구현입니다.
 - **실행 계정**: 애플리케이션은 Root 계정으로 실행하지 않습니다.
-- **비밀 정보 관리**: `t_secret.key`와 실제 인증 정보는 Git 저장소에 커밋하지 않습니다.
 - **방화벽 정책**: 인바운드 포트는 TCP `20022`, `15034`만 허용합니다.
 - **Health Check 정책**: 프로세스 또는 포트 점검 실패 시 즉시 종료 코드 `1`을 반환합니다.
 - **경고 정책**: 방화벽 및 자원 임계값 경고는 스크립트를 종료시키지 않습니다.
+
+### 권장 운영 사항
+
+- `t_secret.key`와 실제 인증 정보는 Git 저장소에 커밋하지 않습니다.
+- 수행 내역서만 보고도 설정 과정과 검증 결과를 재현할 수 있도록 명령어와 결과를 기록합니다.
 
 ### 커스텀 설정값 명세
 
@@ -197,4 +208,3 @@ $AGENT_HOME/
 - 앱의 Boot Sequence 5단계가 모두 통과하고 `Agent READY`가 출력되어야 합니다.
 - `monitor.sh`가 프로세스, 포트, 방화벽, CPU, 메모리, 디스크를 점검하고 로그를 남겨야 합니다.
 - cron 등록 후 별도 수동 실행 없이 `monitor.log`가 매분 증가해야 합니다.
-- 수행 내역서만 보고도 설정 과정과 검증 결과를 재현할 수 있어야 합니다.
