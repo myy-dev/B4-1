@@ -1,0 +1,2 @@
+# Installed in the agent-admin crontab by bin/setup-system.sh.
+* * * * * /home/agent-admin/agent-app/bin/run-monitor.sh >> /var/log/agent-app/cron.log 2>&1 # agent-app-monitor

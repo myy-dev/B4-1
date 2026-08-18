@@ -31,18 +31,36 @@
 
 ## 프로젝트 구조 (Project Structure)
 
-아래는 제출 결과물의 권장 구조입니다.
+구현과 검증에 사용하는 실제 저장소 구조입니다.
 
 ```text
 .
-├── README.md                      # 프로젝트 설명 및 수행 항목 체크리스트
-├── bin/                           # 자동화 스크립트
-│   ├── monitor.sh                 # 시스템 상태 수집 및 로깅 스크립트
-│   ├── report.sh                  # 통계 리포트 생성 스크립트 (보너스)
-│   └── archive-logs.sh            # 로그 압축·보관·삭제 스크립트 (보너스)
+├── README.md                       # 프로젝트 설명 및 수행 항목 체크리스트
+├── Makefile                        # 로컬·Ubuntu 통합 테스트 명령
+├── app/
+│   └── agent_app.py                # 제공 앱이 없을 때 사용하는 참조 앱
+├── bin/
+│   ├── setup-system.sh             # Ubuntu 보안·계정·앱·cron 자동 구성
+│   ├── start-agent.sh              # 일반 계정 앱 실행 래퍼
+│   ├── monitor.sh                  # 프로세스·포트·자원 점검 및 로깅
+│   ├── run-monitor.sh              # cron용 환경 로드 래퍼
+│   ├── report.sh                   # 통계 및 기간 필터 리포트
+│   ├── archive-logs.sh             # 로그 압축·보관·삭제
+│   ├── verify-system.sh            # 적용 결과 37개 항목 검증
+│   └── collect-evidence.sh          # 제출용 시스템 증빙 수집
+├── config/
+│   ├── agent-app.env.example       # 앱·모니터 환경 변수 예시
+│   ├── agent-app.cron.example      # agent-admin cron 예시
+│   └── sshd-agent-app.conf         # SSH 보안 설정
 ├── docs/
-│   └── execution-report.md        # 요구사항 수행 내역 및 설정·명령어 기록
-└── evidence/                      # 설정 및 실행 결과 증빙 자료
+│   ├── operations.md               # 설치·검증·운영 가이드
+│   └── execution-report.md         # 요구사항 수행 내역서 템플릿
+├── evidence/
+│   ├── README.md                    # 실제 VM 증빙 수집 안내
+│   └── ubuntu-integration-summary.md # Ubuntu 격리 검증 결과
+└── tests/
+    ├── run.sh                       # 기능·실패·예외 경로 30개 테스트
+    └── run-ubuntu-integration.sh    # Ubuntu 22.04 전체 통합 테스트
 ```
 
 실제 서버에는 다음 디렉토리와 파일을 구성합니다.
@@ -59,77 +77,113 @@ $AGENT_HOME/
 └── monitor.log
 ```
 
+## 빠른 시작 (Quick Start)
+
+로컬에서 Bash 로직과 참조 앱을 검증합니다.
+
+```bash
+make test
+```
+
+Docker Desktop이 실행 중이면 깨끗한 Ubuntu 22.04 컨테이너에 전체 구성을 두 번 적용해 멱등성을 확인하고, cron 로그 증가까지 검증합니다.
+
+```bash
+make test-ubuntu
+```
+
+실제 실습용 Ubuntu VM에서는 먼저 드라이런을 확인한 뒤 적용합니다. `--reset-firewall`은 기존 UFW 규칙을 초기화하므로 콘솔 접근이 가능한 실습 환경에서만 사용해야 합니다.
+
+```bash
+./bin/setup-system.sh --reset-firewall --start-app
+sudo ./bin/setup-system.sh --apply --reset-firewall --start-app
+sudo /home/agent-admin/agent-app/bin/verify-system.sh --wait-cron
+```
+
+상세 절차와 제출 자료 수집 방법은 [`docs/operations.md`](docs/operations.md), 수행 내역서 양식은 [`docs/execution-report.md`](docs/execution-report.md)에서 확인할 수 있습니다.
+
+## 구현 및 검증 상태
+
+- `make test`: 기능·실패·예외 경로 **30개 항목 통과**
+- `make test-ubuntu`: Ubuntu 22.04에서 설치를 두 번 적용한 뒤 **37개 시스템 검증 통과, 실패 0개**
+- 검증 범위: SSH, UFW, 계정·그룹, 권한·ACL, 앱 Boot Sequence, TCP `15034`, 모니터링, 로그 포맷, cron 자동 증가
+- 검증 기록: [`evidence/ubuntu-integration-summary.md`](evidence/ubuntu-integration-summary.md)
+
+아래 체크 표시는 저장소 구현과 격리된 Ubuntu 통합 검증을 기준으로 합니다. 특정 제출용 VM의 원본 증빙은 해당 VM에서 `collect-evidence.sh`를 실행해 별도로 생성해야 합니다.
+
 ## 수행 항목 체크리스트
 
 ### 기본 보안 및 네트워크 설정
 
-- [ ] SSH 접속 포트를 `20022`로 변경
-- [ ] Root 원격 로그인 차단(`PermitRootLogin no`)
-- [ ] SSH 설정 파일에서 포트와 Root 로그인 차단 설정 확인
-- [ ] `ss -tulnp`로 SSH 포트 리슨 상태 확인
-- [ ] UFW 또는 firewalld 중 하나를 선택해 활성화
-- [ ] 인바운드 TCP `20022`(SSH), `15034`(APP) 포트만 허용
-- [ ] 그 외 불필요한 인바운드 포트 차단
-- [ ] `ufw status` 또는 `firewall-cmd --list-all`로 방화벽 정책 확인
+- [x] SSH 접속 포트를 `20022`로 변경
+- [x] Root 원격 로그인 차단(`PermitRootLogin no`)
+- [x] SSH 설정 파일에서 포트와 Root 로그인 차단 설정 확인
+- [x] `ss -tulnp`로 SSH 포트 리슨 상태 확인
+- [x] UFW 또는 firewalld 중 하나를 선택해 활성화
+- [x] 인바운드 TCP `20022`(SSH), `15034`(APP) 포트만 허용
+- [x] 그 외 불필요한 인바운드 포트 차단
+- [x] `ufw status` 또는 `firewall-cmd --list-all`로 방화벽 정책 확인
 
 ### 계정·그룹 및 권한 체계
 
-- [ ] 운영·관리 계정 `agent-admin` 생성
-- [ ] 개발·운영 계정 `agent-dev` 생성
-- [ ] QA·테스트 계정 `agent-test` 생성
-- [ ] 공통 그룹 `agent-common` 생성 후 `agent-admin`, `agent-dev`, `agent-test` 계정 추가
-- [ ] 핵심 그룹 `agent-core` 생성 후 `agent-admin`, `agent-dev` 계정 추가
-- [ ] `$AGENT_HOME/upload_files` 디렉토리 생성
-- [ ] `$AGENT_HOME/api_keys` 디렉토리 생성
-- [ ] `/var/log/agent-app` 디렉토리 생성
-- [ ] `upload_files`의 그룹을 `agent-common`으로 설정하고 그룹 읽기·쓰기 권한 부여
-- [ ] `api_keys`와 `/var/log/agent-app`의 그룹을 `agent-core`로 설정
-- [ ] `api_keys`와 `/var/log/agent-app`에 `agent-core` 구성원만 읽기·쓰기 가능하도록 설정
-- [ ] 필요 시 ACL을 적용해 디렉토리별 접근 권한 고정
-- [ ] `id`, `ls -l`로 계정·그룹·권한 확인하고 ACL 사용 시 `getfacl`로 추가 확인
+- [x] 운영·관리 계정 `agent-admin` 생성
+- [x] 개발·운영 계정 `agent-dev` 생성
+- [x] QA·테스트 계정 `agent-test` 생성
+- [x] 공통 그룹 `agent-common` 생성 후 `agent-admin`, `agent-dev`, `agent-test` 계정 추가
+- [x] 핵심 그룹 `agent-core` 생성 후 `agent-admin`, `agent-dev` 계정 추가
+- [x] `$AGENT_HOME/upload_files` 디렉토리 생성
+- [x] `$AGENT_HOME/api_keys` 디렉토리 생성
+- [x] `/var/log/agent-app` 디렉토리 생성
+- [x] `upload_files`의 그룹을 `agent-common`으로 설정하고 그룹 읽기·쓰기 권한 부여
+- [x] `api_keys`와 `/var/log/agent-app`의 그룹을 `agent-core`로 설정
+- [x] `api_keys`와 `/var/log/agent-app`에 `agent-core` 구성원만 읽기·쓰기 가능하도록 설정
+- [x] 필요 시 ACL을 적용해 디렉토리별 접근 권한 고정
+- [x] `id`, `ls -l`로 계정·그룹·권한 확인하고 ACL 사용 시 `getfacl`로 추가 확인
 
 ### 애플리케이션 실행 환경
 
-- [ ] `AGENT_HOME` 설정(예: `/home/agent-admin/agent-app`)
-- [ ] `AGENT_PORT=15034` 설정
-- [ ] `AGENT_UPLOAD_DIR=$AGENT_HOME/upload_files` 설정
-- [ ] `AGENT_KEY_PATH=$AGENT_HOME/api_keys/t_secret.key` 설정
-- [ ] (권장) `AGENT_LOG_DIR=/var/log/agent-app` 설정(미지정 시 같은 경로를 기본값으로 사용)
-- [ ] `$AGENT_HOME/api_keys/t_secret.key` 파일 생성
-- [ ] 키 파일에 과제용 값 `agent_api_key_test`를 한 줄로 저장
-- [ ] 애플리케이션을 Root가 아닌 일반 계정으로 실행
-- [ ] Boot Sequence 5단계가 모두 `[OK]`인지 확인
-- [ ] 마지막 출력에서 `Agent READY` 확인
-- [ ] 애플리케이션이 `0.0.0.0:15034`에서 LISTEN 상태인지 확인
+> 제공된 `agent-app.zip` 또는 아키텍처별 실행 파일이 저장소에 있으면 설치 스크립트가 이를 우선 선택합니다. 현재 저장소에는 제공 파일이 없어 동일한 Boot 계약을 구현한 `app/agent_app.py`로 자동 검증했으며, 실제 제공 앱 결과는 해당 파일을 추가한 뒤 다시 확인해야 합니다.
+
+- [x] `AGENT_HOME` 설정(예: `/home/agent-admin/agent-app`)
+- [x] `AGENT_PORT=15034` 설정
+- [x] `AGENT_UPLOAD_DIR=$AGENT_HOME/upload_files` 설정
+- [x] `AGENT_KEY_PATH=$AGENT_HOME/api_keys/t_secret.key` 설정
+- [x] (권장) `AGENT_LOG_DIR=/var/log/agent-app` 설정(미지정 시 같은 경로를 기본값으로 사용)
+- [x] `$AGENT_HOME/api_keys/t_secret.key` 파일 생성
+- [x] 키 파일에 과제용 값 `agent_api_key_test`를 한 줄로 저장
+- [x] 애플리케이션을 Root가 아닌 일반 계정으로 실행(참조 앱 검증 완료)
+- [x] Boot Sequence 5단계가 모두 `[OK]`인지 확인(참조 앱 검증 완료)
+- [x] 마지막 출력에서 `Agent READY` 확인(참조 앱 검증 완료)
+- [x] 애플리케이션이 `0.0.0.0:15034`에서 LISTEN 상태인지 확인(참조 앱 검증 완료)
+- [ ] 실제 제공 앱으로 위 실행 결과 재확인(제공 파일 필요)
 
 > 애플리케이션을 종료할 때는 `Ctrl+C`를 사용합니다.
 
 ### 시스템 관제 자동화 (`monitor.sh`)
 
-- [ ] 스크립트를 `$AGENT_HOME/bin/monitor.sh`에 작성
-- [ ] 소유자를 `agent-dev`, 그룹을 `agent-core`로 설정
-- [ ] 파일 권한을 `750`(`rwxr-x---`)으로 설정
-- [ ] `agent-admin` 계정이 스크립트를 실행할 수 있는지 확인
-- [ ] `agent_app.py` 또는 제공된 앱 프로세스의 실행 상태 확인
-- [ ] 프로세스가 비정상이면 종료 코드 `1` 반환
-- [ ] TCP `15034` 포트의 LISTEN 상태 확인
-- [ ] 포트가 비정상이면 종료 코드 `1` 반환
-- [ ] UFW 또는 firewalld 활성화 상태 확인
-- [ ] 방화벽이 비활성 상태이면 `[WARNING]`만 출력하고 점검 계속 진행
-- [ ] CPU 사용률(%) 수집
-- [ ] 메모리 사용률(%) 수집
-- [ ] 루트 파티션 디스크 사용률(%) 수집
-- [ ] CPU 사용률이 20%를 초과하면 `[WARNING]` 출력
-- [ ] 메모리 사용률이 10%를 초과하면 `[WARNING]` 출력
-- [ ] 디스크 사용률이 80%를 초과하면 `[WARNING]` 출력
-- [ ] `/var/log/agent-app/monitor.log`에 점검 결과 누적 기록
-- [ ] 로그 포맷을 `[YYYY-MM-DD HH:MM:SS] PID:... CPU:..% MEM:..% DISK_USED:..%`로 구성
-- [ ] logrotate 또는 스크립트 로직으로 로그 파일을 최대 10MB, 10개까지 유지
+- [x] 스크립트를 `$AGENT_HOME/bin/monitor.sh`에 작성
+- [x] 소유자를 `agent-dev`, 그룹을 `agent-core`로 설정
+- [x] 파일 권한을 `750`(`rwxr-x---`)으로 설정
+- [x] `agent-admin` 계정이 스크립트를 실행할 수 있는지 확인
+- [x] `agent_app.py` 또는 제공된 앱 프로세스의 실행 상태 확인
+- [x] 프로세스가 비정상이면 종료 코드 `1` 반환
+- [x] TCP `15034` 포트의 LISTEN 상태 확인
+- [x] 포트가 비정상이면 종료 코드 `1` 반환
+- [x] UFW 또는 firewalld 활성화 상태 확인
+- [x] 방화벽이 비활성 상태이면 `[WARNING]`만 출력하고 점검 계속 진행
+- [x] CPU 사용률(%) 수집
+- [x] 메모리 사용률(%) 수집
+- [x] 루트 파티션 디스크 사용률(%) 수집
+- [x] CPU 사용률이 20%를 초과하면 `[WARNING]` 출력
+- [x] 메모리 사용률이 10%를 초과하면 `[WARNING]` 출력
+- [x] 디스크 사용률이 80%를 초과하면 `[WARNING]` 출력
+- [x] `/var/log/agent-app/monitor.log`에 점검 결과 누적 기록
+- [x] 로그 포맷을 `[YYYY-MM-DD HH:MM:SS] PID:... CPU:..% MEM:..% DISK_USED:..%`로 구성
+- [x] logrotate 또는 스크립트 로직으로 로그 파일을 최대 10MB, 10개까지 유지
 
 ### 자동 실행 (`cron`)
 
-- [ ] `agent-admin` 계정의 crontab에 `monitor.sh` 매분 실행 등록
-- [ ] 등록 후 1~2분 내 `monitor.log`에 새 로그가 추가되는지 확인
+- [x] `agent-admin` 계정의 crontab에 `monitor.sh` 매분 실행 등록
+- [x] 등록 후 1~2분 내 `monitor.log`에 새 로그가 추가되는지 확인
 
 #### 권장 점검
 
@@ -137,6 +191,8 @@ $AGENT_HOME/
 - cron 실행 중 권한 오류나 경로 오류가 없는지 확인합니다.
 
 ### 요구사항 수행 내역서 및 증빙
+
+> Ubuntu 격리 검증 요약은 작성됐지만, 아래 원본 증빙은 실제 제출용 VM에서 `collect-evidence.sh`를 실행한 뒤 완료로 표시합니다.
 
 - [ ] SSH 포트 `20022` 변경 및 Root 원격 접속 차단 설정 기록
 - [ ] 방화벽 활성화 및 TCP `20022`, `15034`만 허용한 내역 기록
@@ -148,16 +204,16 @@ $AGENT_HOME/
 - [ ] `monitor.sh`의 프로세스·포트·리소스·경고 출력 첨부
 - [ ] `/var/log/agent-app/monitor.log` 최근 누적 로그 첨부
 - [ ] cron 등록 전후 로그를 비교해 자동 실행 증명
-- [ ] `monitor.sh` 전체 소스코드 제출
+- [x] `monitor.sh` 전체 소스코드 제출
 
 ### 보너스 과제
 
-- [ ] **통계 리포트**: `report.sh`로 CPU, 메모리, 디스크의 평균·최대·최소와 샘플 수 출력
-- [ ] **기간 필터링**: 시작·종료 시간을 입력받아 해당 구간의 로그만 분석
-- [ ] **로그 압축**: `/var/log/agent-app/*.log` 중 7일 이상 지난 파일 압축
-- [ ] **로그 아카이브**: 압축 파일을 `/var/log/monitor/agent-app/archive/`로 이동
-- [ ] **오래된 로그 삭제**: 아카이브의 `.gz` 파일 중 30일 이상 지난 파일 삭제
-- [ ] **예외 처리**: 디렉토리 미존재, 권한 부족, 대상 파일 없음 상황을 안전하게 처리
+- [x] **통계 리포트**: `report.sh`로 CPU, 메모리, 디스크의 평균·최대·최소와 샘플 수 출력
+- [x] **기간 필터링**: 시작·종료 시간을 입력받아 해당 구간의 로그만 분석
+- [x] **로그 압축**: `/var/log/agent-app/*.log` 중 7일 이상 지난 파일 압축
+- [x] **로그 아카이브**: 압축 파일을 `/var/log/monitor/agent-app/archive/`로 이동
+- [x] **오래된 로그 삭제**: 아카이브의 `.gz` 파일 중 30일 이상 지난 파일 삭제
+- [x] **예외 처리**: 디렉토리 미존재, 권한 부족, 대상 파일 없음 상황을 안전하게 처리
 
 ### 제약 사항 (Constraints)
 
