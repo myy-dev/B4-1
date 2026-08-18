@@ -202,10 +202,11 @@ test_monitor_rotation() {
 }
 
 test_report() {
-  local log output filtered
+  local log output filtered bounded
   log="${TEST_TMP}/report.log"
   output="${TEST_TMP}/report.txt"
   filtered="${TEST_TMP}/report-filtered.txt"
+  bounded="${TEST_TMP}/report-bounded.txt"
   cat >"$log" <<'EOF'
 [2026-02-25 13:58:01] PID:1 CPU:10.0% MEM:5.0% DISK_USED:20.0%
 [2026-02-25 13:59:01] PID:1 CPU:20.0% MEM:10.0% DISK_USED:40.0%
@@ -219,6 +220,10 @@ EOF
 
   "${REPO_ROOT}/bin/report.sh" --log "$log" --from '2026-02-25 13:59:01' >"$filtered"
   assert_contains "$filtered" 'Data Points: 2 samples' 'Report filters by time range'
+
+  "${REPO_ROOT}/bin/report.sh" --log "$log" \
+    --from '2026-02-25 13:59:01' --to '2026-02-25 13:59:01' >"$bounded"
+  assert_contains "$bounded" 'Data Points: 1 samples' 'Report applies both start and end boundaries'
 }
 
 test_archive_retention() {
@@ -228,15 +233,19 @@ test_archive_retention() {
   output="${TEST_TMP}/retention.txt"
   mkdir -p "$log_dir" "$archive_dir"
   printf 'old log\n' >"${log_dir}/old.log"
+  printf 'fresh log\n' >"${log_dir}/fresh.log"
+  touch -t 202001010000 "${log_dir}/old.log"
 
-  AGENT_LOG_DIR="$log_dir" ARCHIVE_DIR="$archive_dir" ARCHIVE_ALL=1 \
+  AGENT_LOG_DIR="$log_dir" ARCHIVE_DIR="$archive_dir" \
     "${REPO_ROOT}/bin/archive-logs.sh" >"$output"
-  assert_exists "${archive_dir}/old.log.gz" 'Old logs are compressed into the archive'
+  assert_exists "${archive_dir}/old.log.gz" 'Logs older than seven days are compressed into the archive'
   [[ ! -e "${log_dir}/old.log" ]] && pass 'Archived source log is removed' || fail 'Archived source log remains'
+  assert_exists "${log_dir}/fresh.log" 'Logs newer than seven days remain active'
 
-  AGENT_LOG_DIR="$log_dir" ARCHIVE_DIR="$archive_dir" DELETE_ALL=1 \
+  touch -t 202001010000 "${archive_dir}/old.log.gz"
+  AGENT_LOG_DIR="$log_dir" ARCHIVE_DIR="$archive_dir" \
     "${REPO_ROOT}/bin/archive-logs.sh" >>"$output"
-  [[ ! -e "${archive_dir}/old.log.gz" ]] && pass 'Expired archives are deleted' || fail 'Expired archive remains'
+  [[ ! -e "${archive_dir}/old.log.gz" ]] && pass 'Archives older than thirty days are deleted' || fail 'Expired archive remains'
   assert_contains "$output" 'No log files were old enough to archive' 'No matching log files are handled safely'
 
   AGENT_LOG_DIR="${TEST_TMP}/missing-log-dir" ARCHIVE_DIR="$archive_dir" \

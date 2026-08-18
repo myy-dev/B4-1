@@ -60,7 +60,7 @@
 │   ├── ubuntu-integration-summary.md # Ubuntu 격리 검증 요약
 │   └── ubuntu-22.04/                 # Ubuntu 원본 명령 출력과 제출 소스
 └── tests/
-    ├── run.sh                       # 기능·실패·예외 경로 33개 테스트
+    ├── run.sh                       # 기능·실패·예외 경로 35개 테스트
     └── run-ubuntu-integration.sh    # Ubuntu 22.04 전체 통합 테스트
 ```
 
@@ -104,7 +104,7 @@ sudo /home/agent-admin/agent-app/bin/verify-system.sh --wait-cron
 
 ## 구현 및 검증 상태
 
-- `make test`: 기능·실패·예외 경로 **33개 항목 통과**
+- `make test`: 기능·실패·예외 경로 **35개 항목 통과**
 - `make test-ubuntu`: Ubuntu 22.04에서 설치를 두 번 적용한 뒤 **37개 시스템 검증 통과, 실패 0개**
 - 검증 범위: SSH, UFW, 계정·그룹, 권한·ACL, 앱 Boot Sequence, TCP `15034`, 모니터링, 로그 포맷, cron 자동 증가
 - 검증 기록: [`evidence/ubuntu-integration-summary.md`](evidence/ubuntu-integration-summary.md)
