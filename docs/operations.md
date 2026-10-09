@@ -1,6 +1,6 @@
 # Ubuntu 설치 및 운영 가이드
 
-이 문서는 깨끗한 Ubuntu 22.04 VM 또는 컨테이너에서 프로젝트를 적용하고 검증하는 절차입니다.
+이 문서는 깨끗한 Ubuntu 24.04 LTS VM 또는 컨테이너에서 프로젝트를 적용하고 검증하는 절차입니다.
 
 ## 사전 준비
 
@@ -27,7 +27,7 @@ make test
 
 기본 모드는 드라이런입니다. 출력된 계정, 경로, UFW 초기화와 SSH 재시작 작업을 검토합니다.
 
-Docker Desktop이 실행 중이면 격리된 Ubuntu 22.04 컨테이너에서 설치부터 cron 증가 확인까지 통합 테스트할 수 있습니다.
+Docker Desktop이 실행 중이면 격리된 Ubuntu 24.04 컨테이너에서 설치부터 cron 증가 확인까지 통합 테스트할 수 있습니다.
 
 ```bash
 make test-ubuntu
@@ -50,9 +50,16 @@ sudo ./bin/setup-system.sh --apply --reset-firewall --start-app
 5. 참조 앱과 Bash 자동화 스크립트 설치
 6. 환경 변수와 과제용 키 파일 생성
 7. UFW 초기화 후 `20022/tcp`, `15034/tcp`만 허용
-8. SSH 포트 변경, Root 원격 접속 차단, 설정 검증 후 재시작
+8. SSH 포트 변경, Root 원격 접속 차단, 설정 검증 후 재시작 (systemd 환경에서는 SSH 소켓 설정도 자동 반영)
 9. `agent-admin` crontab에 매분 모니터링 등록
 10. 참조 앱을 `agent-admin` 계정으로 실행
+
+Ubuntu 24.04 VM에서 `ssh.socket`이 활성화되어 있다면 설치 스크립트가 아래 절차를 자동으로 수행합니다. 이후 SSH 포트를 수동으로 변경할 때도 같은 절차를 사용합니다. Ubuntu 24.04는 systemd generator로 SSH 포트 설정을 읽습니다. [Ubuntu SSH 안내](https://discourse.ubuntu.com/t/sshd-now-uses-socket-based-activation-ubuntu-22-10-and-later/30189/1)
+
+```bash
+sudo systemctl daemon-reload
+sudo systemctl restart ssh.socket ssh.service
+```
 
 ## 4. 즉시 검증
 

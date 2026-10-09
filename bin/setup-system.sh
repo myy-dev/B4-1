@@ -192,6 +192,20 @@ configure_firewall() {
   run ufw --force enable
 }
 
+restart_ssh() {
+  if command -v systemctl >/dev/null 2>&1 && systemctl show-environment >/dev/null 2>&1; then
+    # Reload Ubuntu 24.04's generator before restarting socket-activated SSH.
+    systemctl daemon-reload
+    if systemctl is-active --quiet ssh.socket || systemctl is-enabled --quiet ssh.socket; then
+      systemctl restart ssh.socket ssh.service
+    else
+      systemctl restart ssh.service || systemctl restart sshd.service
+    fi
+  else
+    service ssh restart || service sshd restart
+  fi
+}
+
 configure_ssh() {
   local content
   content=$(<"${REPO_ROOT}/config/sshd-agent-app.conf")
@@ -222,14 +236,10 @@ configure_ssh() {
       || { printf '[ERROR] Effective SSH ports are not restricted to 20022.\n' >&2; exit 1; }
     sshd -T 2>/dev/null | awk '$1 == "permitrootlogin" && $2 == "no" { found=1 } END { exit(found ? 0 : 1) }' \
       || { printf '[ERROR] PermitRootLogin is not effectively disabled.\n' >&2; exit 1; }
-    if command -v systemctl >/dev/null 2>&1 \
-      && (systemctl restart ssh 2>/dev/null || systemctl restart sshd 2>/dev/null); then
-      :
-    else
-      service ssh restart || service sshd restart
-    fi
+    restart_ssh
   else
     printf '+ sshd -t\n'
+    printf '+ reload systemd SSH socket configuration when available\n'
     printf '+ restart ssh service\n'
   fi
 }
