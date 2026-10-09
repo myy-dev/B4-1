@@ -8,8 +8,6 @@ import json
 import os
 import pathlib
 import pwd
-import socket
-import sys
 from typing import NoReturn
 
 
@@ -93,31 +91,26 @@ def main() -> None:
         fail(3, "Checking Required Files", "Key file content is invalid.")
     ok(3, "Checking Required Files", "Verified key file with correct key string.")
 
-    probe = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
     try:
-        probe.bind(("0.0.0.0", port))
+        server = http.server.ThreadingHTTPServer(("0.0.0.0", port), HealthHandler)
     except OSError as error:
         fail(4, "Checking Port Availability", f"Port {port} is unavailable: {error}")
-    finally:
-        probe.close()
-    ok(4, "Checking Port Availability", f"Port {port} is available.")
+    with server:
+        ok(4, "Checking Port Availability", f"Port {port} is available.")
 
-    log_dir = pathlib.Path(os.environ.get("AGENT_LOG_DIR", "/var/log/agent-app"))
-    if not log_dir.is_dir() or not os.access(log_dir, os.W_OK):
-        fail(5, "Verifying Log Permission", f"Log directory is not writable: {log_dir}")
-    ok(5, "Verifying Log Permission", f"Log directory is writable: {log_dir}")
+        log_dir = pathlib.Path(os.environ.get("AGENT_LOG_DIR", "/var/log/agent-app"))
+        if not log_dir.is_dir() or not os.access(log_dir, os.W_OK):
+            fail(5, "Verifying Log Permission", f"Log directory is not writable: {log_dir}")
+        ok(5, "Verifying Log Permission", f"Log directory is writable: {log_dir}")
 
-    print("-" * 60, flush=True)
-    print("All Boot Checks Passed!", flush=True)
-    print("Agent READY", flush=True)
+        print("-" * 60, flush=True)
+        print("All Boot Checks Passed!", flush=True)
+        print("Agent READY", flush=True)
 
-    server = http.server.ThreadingHTTPServer(("0.0.0.0", port), HealthHandler)
-    try:
-        server.serve_forever()
-    except KeyboardInterrupt:
-        print("\nAgent stopped.", flush=True)
-    finally:
-        server.server_close()
+        try:
+            server.serve_forever()
+        except KeyboardInterrupt:
+            print("\nAgent stopped.", flush=True)
 
 
 if __name__ == "__main__":
