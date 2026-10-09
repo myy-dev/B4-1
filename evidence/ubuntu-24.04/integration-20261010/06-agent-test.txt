@@ -1,0 +1,2 @@
+$ id agent-test
+uid=1003(agent-test) gid=1005(agent-test) groups=1005(agent-test),1001(agent-common)

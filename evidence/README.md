@@ -1,10 +1,12 @@
 # 증빙 자료
 
-재현 가능한 Ubuntu 22.04 컨테이너 증빙은 [`ubuntu-22.04/integration-20260818/`](ubuntu-22.04/integration-20260818/)에 포함되어 있습니다. Docker Desktop에서 새 증빙을 생성하려면 다음 명령을 실행합니다.
+Ubuntu 24.04 검증 증빙은 [`ubuntu-24.04/integration-20261010-refactor/`](ubuntu-24.04/integration-20261010-refactor/)에 포함되어 있습니다. 기존 Ubuntu 22.04 컨테이너 증빙은 [`ubuntu-22.04/integration-20260818/`](ubuntu-22.04/integration-20260818/)에 포함되어 있습니다. 현재 통합 테스트 대상은 Ubuntu 24.04 LTS이며, Docker Desktop에서 새 증빙을 생성하려면 다음 명령을 실행합니다.
 
 ```bash
 EVIDENCE_RUN_ID=integration make evidence-ubuntu
 ```
+
+새 컨테이너 증빙은 `evidence/ubuntu-24.04/integration/` 아래에 저장됩니다.
 
 Ubuntu 시스템에 적용한 뒤 다음 명령으로 증빙을 생성합니다.
 

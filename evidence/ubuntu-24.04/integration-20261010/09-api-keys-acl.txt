@@ -1,0 +1,16 @@
+$ getfacl /home/agent-admin/agent-app/api_keys
+getfacl: Removing leading '/' from absolute path names
+# file: home/agent-admin/agent-app/api_keys
+# owner: agent-admin
+# group: agent-core
+# flags: -s-
+user::rwx
+group::rwx
+group:agent-core:rwx
+mask::rwx
+other::---
+default:user::rwx
+default:group::rwx
+default:group:agent-core:rwx
+default:mask::rwx
+default:other::---

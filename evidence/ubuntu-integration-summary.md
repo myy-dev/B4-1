@@ -1,10 +1,10 @@
-# Ubuntu 22.04 통합 검증 요약
+# Ubuntu 24.04 통합 검증 요약
 
-- 검증 환경: Docker Desktop의 격리된 `ubuntu:22.04` ARM64 컨테이너
-- 검증 명령: `make test-ubuntu`
-- 검증 일자: 2026-08-18
+- 검증 환경: Docker Desktop의 격리된 `ubuntu:24.04` ARM64 컨테이너
+- 검증 명령: `EVIDENCE_RUN_ID=integration-20261010-refactor make evidence-ubuntu`
+- 검증 일자: 2026-10-10 (한국 시간)
 - 최종 결과: `passed=37 failed=0`
-- 원본 명령 출력: [`ubuntu-22.04/integration-20260818/`](ubuntu-22.04/integration-20260818/)
+- 원본 명령 출력: [`ubuntu-24.04/integration-20261010-refactor/`](ubuntu-24.04/integration-20261010-refactor/)
 
 ## 검증 범위
 
@@ -52,6 +52,8 @@
 - `[PASS]` 최근 로그가 지정된 PID·CPU·MEM·DISK 포맷과 일치
 
 ## 자동 테스트
+
+간결화한 코드에서도 `make test`의 35개 항목이 모두 통과했습니다. 추가 검증 7개에서 로그 보존의 7일·30일 경계 전후, 새 아카이브 유지, 전체 처리 옵션과 특수 파일명, 앱 시작 실패 시 포트 정리와 포트 충돌, 세 자원의 평균·최대·최소 및 샘플 수를 확인했습니다.
 
 `make test`는 35개 항목에서 현재 아키텍처의 제공 바이너리 우선 선택, 참조 앱의 실제 15034 Health Check, 프로세스·포트 실패 종료, 일반 계정의 UFW 상태 판별, 방화벽·CPU·메모리·디스크 경고, 로그 회전, 시작·종료 기간 필터, 실제 7일 압축·30일 삭제 기준과 디렉토리·권한·대상 없음 예외 처리를 검증했습니다.
 

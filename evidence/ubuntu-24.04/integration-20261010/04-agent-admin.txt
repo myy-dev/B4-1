@@ -1,0 +1,2 @@
+$ id agent-admin
+uid=1001(agent-admin) gid=1003(agent-admin) groups=1003(agent-admin),1001(agent-common),1002(agent-core)

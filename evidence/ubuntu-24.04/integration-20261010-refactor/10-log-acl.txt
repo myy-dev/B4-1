@@ -1,0 +1,16 @@
+$ getfacl /var/log/agent-app
+getfacl: Removing leading '/' from absolute path names
+# file: var/log/agent-app
+# owner: agent-admin
+# group: agent-core
+# flags: -s-
+user::rwx
+group::rwx
+group:agent-core:rwx
+mask::rwx
+other::---
+default:user::rwx
+default:group::rwx
+default:group:agent-core:rwx
+default:mask::rwx
+default:other::---

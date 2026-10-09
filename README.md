@@ -2,36 +2,20 @@
 
 ## 프로젝트 개요 (Project Overview)
 
-- Linux 서버의 기본 보안, 계정과 권한, 네트워크 정책을 구성하고 시스템 상태를 자동으로 점검하는 프로젝트입니다.
-- 제공된 애플리케이션의 프로세스, 포트, CPU, 메모리, 디스크 상태를 Bash 스크립트로 수집하고 운영 로그로 기록합니다.
-- `cron`을 이용한 정기 실행과 로그 보존 정책을 적용해 반복 가능한 서버 관제 환경을 구축합니다.
-- **분야**: AI/SW 기초
-- **구분**: Linux와 OS
-- **학습 시간**: 40시간
-
-## 학습 목표 (Learning Objectives)
-
-- SSH 포트 변경과 Root 원격 접속 차단이 기본 보안에 필요한 이유를 설명할 수 있습니다.
-- UFW 또는 firewalld로 필요한 포트만 허용하고 설정 결과를 검증할 수 있습니다.
-- 역할 기반 계정·그룹과 ACL로 공유 디렉토리와 보안 디렉토리를 분리할 수 있습니다.
-- 환경 변수로 애플리케이션 실행 환경을 고정하고 설정값을 검증할 수 있습니다.
-- Bash로 프로세스, 포트, 시스템 자원을 점검하고 운영 로그를 남길 수 있습니다.
-- cron으로 모니터링을 자동 실행하고 로그 압축·삭제가 필요한 이유를 설명할 수 있습니다.
+Linux 서버의 보안, 계정·권한, 네트워크 정책을 구성하고 Bash 스크립트로 애플리케이션과 시스템 상태를 자동 점검하는 프로젝트
 
 ## 실행 환경 (Environment)
 
-- **운영체제**: Ubuntu 22.04 LTS 또는 동등한 Linux 환경
-- **실습 환경**: 이전 미션에서 구성한 Linux 컨테이너 또는 VM 재사용 권장
-- **스크립트 언어**: Bash
-- **실행 애플리케이션**: 제공된 Python 애플리케이션
-- **보안·운영·자동화 도구**: OpenSSH, UFW 또는 firewalld, cron
-- **권한 관리 도구**: Linux 사용자·그룹 권한, ACL
-- **제공 데이터**: `agent-app.zip`
-- **제공 실행 파일**: `agent-app-linux-x86`, `agent-app-linux-arm64`(Apple Silicon 기반 Linux VM·컨테이너 등 ARM64 Linux 환경용)
+- **운영체제**: Ubuntu 24.04 LTS
+- **언어**: Bash (자동화 스크립트), Python 3 (참조 앱)
+- **검증 환경**: Docker Desktop의 Ubuntu 24.04 ARM64 컨테이너 (검증 완료)
+- **실행 애플리케이션**: `app/agent_app.py` (참조 앱으로 검증 완료)
+- **실행 스크립트**: `bin/start-agent.sh`
+- **실행 계정**: `root`가 아닌 일반 사용자 `agent-admin`
+- **사용 도구**: OpenSSH, UFW 또는 firewalld, cron, ACL, `monitor.sh`, `ps`, `ss`, `df` 등
+- **네트워크**: SSH `20022/tcp`, 애플리케이션 `0.0.0.0:15034`
 
 ## 프로젝트 구조 (Project Structure)
-
-구현과 검증에 사용하는 실제 저장소 구조입니다.
 
 ```text
 .
@@ -58,60 +42,12 @@
 ├── evidence/
 │   ├── README.md                    # 실제 VM 증빙 수집 안내
 │   ├── ubuntu-integration-summary.md # Ubuntu 격리 검증 요약
-│   └── ubuntu-22.04/                 # Ubuntu 원본 명령 출력과 제출 소스
+│   ├── ubuntu-24.04/                 # Ubuntu 24.04 원본 명령 출력과 제출 소스
+│   └── ubuntu-22.04/                 # 기존 Ubuntu 22.04 검증 증빙
 └── tests/
     ├── run.sh                       # 기능·실패·예외 경로 35개 테스트
-    └── run-ubuntu-integration.sh    # Ubuntu 22.04 전체 통합 테스트
+    └── run-ubuntu-integration.sh    # Ubuntu 24.04 전체 통합 테스트
 ```
-
-실제 서버에는 다음 디렉토리와 파일을 구성합니다.
-
-```text
-$AGENT_HOME/
-├── bin/
-│   └── monitor.sh
-├── upload_files/
-└── api_keys/
-    └── t_secret.key
-
-/var/log/agent-app/
-└── monitor.log
-```
-
-## 빠른 시작 (Quick Start)
-
-로컬에서 Bash 로직과 참조 앱을 검증합니다.
-
-```bash
-make test
-```
-
-Docker Desktop이 실행 중이면 깨끗한 Ubuntu 22.04 컨테이너에 전체 구성을 두 번 적용해 멱등성을 확인하고, cron 로그 증가까지 검증합니다.
-
-```bash
-make test-ubuntu
-```
-
-실제 실습용 Ubuntu VM에서는 먼저 드라이런을 확인한 뒤 적용합니다. `--reset-firewall`은 기존 UFW 규칙을 초기화하므로 콘솔 접근이 가능한 실습 환경에서만 사용해야 합니다.
-
-```bash
-./bin/setup-system.sh --reset-firewall --start-app
-sudo ./bin/setup-system.sh --apply --reset-firewall --start-app
-sudo /home/agent-admin/agent-app/bin/verify-system.sh --wait-cron
-```
-
-상세 절차와 제출 자료 수집 방법은 [`docs/operations.md`](docs/operations.md), 수행 내역서 양식은 [`docs/execution-report.md`](docs/execution-report.md)에서 확인할 수 있습니다.
-
-## 구현 및 검증 상태
-
-- `make test`: 기능·실패·예외 경로 **35개 항목 통과**
-- `make test-ubuntu`: Ubuntu 22.04에서 설치를 두 번 적용한 뒤 **37개 시스템 검증 통과, 실패 0개**
-- 검증 범위: SSH, UFW, 계정·그룹, 권한·ACL, 앱 Boot Sequence, TCP `15034`, 모니터링, 로그 포맷, cron 자동 증가
-- 검증 기록: [`evidence/ubuntu-integration-summary.md`](evidence/ubuntu-integration-summary.md)
-- 원본 증빙: [`evidence/ubuntu-22.04/integration-20260818/`](evidence/ubuntu-22.04/integration-20260818/)
-- 완성된 수행 내역서: [`docs/execution-report.md`](docs/execution-report.md)
-
-아래 체크 표시는 저장소 구현과 격리된 Ubuntu 22.04 컨테이너의 원본 증빙을 기준으로 합니다. 별도의 제출용 VM을 사용한다면 해당 VM에서도 `collect-evidence.sh`를 다시 실행해야 합니다.
 
 ## 수행 항목 체크리스트
 
@@ -159,8 +95,6 @@ sudo /home/agent-admin/agent-app/bin/verify-system.sh --wait-cron
 - [x] 애플리케이션이 `0.0.0.0:15034`에서 LISTEN 상태인지 확인(참조 앱 검증 완료)
 - [ ] 실제 제공 앱으로 위 실행 결과 재확인(제공 파일 필요)
 
-> 애플리케이션을 종료할 때는 `Ctrl+C`를 사용합니다.
-
 ### 시스템 관제 자동화 (`monitor.sh`)
 
 - [x] 스크립트를 `$AGENT_HOME/bin/monitor.sh`에 작성
@@ -188,10 +122,7 @@ sudo /home/agent-admin/agent-app/bin/verify-system.sh --wait-cron
 - [x] `agent-admin` 계정의 crontab에 `monitor.sh` 매분 실행 등록
 - [x] 등록 후 1~2분 내 `monitor.log`에 새 로그가 추가되는지 확인
 
-#### 권장 점검
-
-- cron 실행 환경에 필요한 환경 변수를 명시적으로 설정합니다.
-- cron 실행 중 권한 오류나 경로 오류가 없는지 확인합니다.
+> cron 실행 환경에 필요한 환경 변수를 명시하고, 권한 오류나 경로 오류가 없는지 확인합니다.
 
 ### 요구사항 수행 내역서 및 증빙
 
@@ -216,7 +147,7 @@ sudo /home/agent-admin/agent-app/bin/verify-system.sh --wait-cron
 - [x] **오래된 로그 삭제**: 아카이브의 `.gz` 파일 중 30일 이상 지난 파일 삭제
 - [x] **예외 처리**: 디렉토리 미존재, 권한 부족, 대상 파일 없음 상황을 안전하게 처리
 
-### 제약 사항 (Constraints)
+## 제약 사항 (Constraints)
 
 - **구현 언어**: 자동화 스크립트는 Bash로만 작성하며 Python 등으로 대체하지 않습니다.
 - **권한 원칙**: 필요한 경우에만 `sudo`를 사용하고 가능한 작업은 일반 계정으로 수행합니다.
@@ -226,42 +157,32 @@ sudo /home/agent-admin/agent-app/bin/verify-system.sh --wait-cron
 - **Health Check 정책**: 프로세스 또는 포트 점검 실패 시 즉시 종료 코드 `1`을 반환합니다.
 - **경고 정책**: 방화벽 및 자원 임계값 경고는 스크립트를 종료시키지 않습니다.
 
-### 권장 운영 사항
-
 - `t_secret.key`와 실제 인증 정보는 Git 저장소에 커밋하지 않습니다.
 - 수행 내역서만 보고도 설정 과정과 검증 결과를 재현할 수 있도록 명령어와 결과를 기록합니다.
 
-### 커스텀 설정값 명세
-
-| 항목 | 기준값 | 비고 |
-| --- | --- | --- |
-| SSH 포트 | `20022/tcp` | 필수 |
-| 애플리케이션 포트 | `15034/tcp` | 필수 |
-| 애플리케이션 바인딩 | `0.0.0.0:15034` | 필수 |
-| CPU 경고 임계값 | 20% 초과 | 경고 후 계속 실행 |
-| 메모리 경고 임계값 | 10% 초과 | 경고 후 계속 실행 |
-| 디스크 경고 임계값 | 80% 초과 | 루트 파티션 기준 |
-| 모니터링 주기 | 매분 | `agent-admin` crontab |
-| 로그 파일 | `/var/log/agent-app/monitor.log` | 누적 기록 |
-| 로그 파일 최대 크기 | 10MB | 필수 |
-| 로그 보관 개수 | 10개 | 필수 |
-| 로그 압축 기준 | 7일 경과 | 보너스 |
-| 아카이브 삭제 기준 | 30일 경과 | 보너스 |
-
 ## 결과물 (Deliverables)
 
-- **요구사항 수행 내역서 1개**
-  - 수행 내역
-  - SSH, 방화벽, 계정·그룹·ACL, 디렉토리·권한, 환경 변수, cron 설정 및 명령어 기록
-  - 필수 증빙 자료
-- **자동화 스크립트 소스코드**
-  - 필수: `monitor.sh`
-  - 보너스: `report.sh`, 로그 보존 자동화 스크립트
+### 사용자 가이드 (User Guide)
 
-## 완료 기준
+- [operations.md](docs/operations.md): 설치, 환경 변수 설정, 실행, 검증 및 증빙 수집 절차
+- 로컬 기능·실패·예외 경로 검증: `make test`
+- Docker Desktop 실행 후 Ubuntu 24.04 통합 검증: `make test-ubuntu`
 
-- SSH와 방화벽 정책이 요구값으로 설정되고 명령어 출력으로 검증되어야 합니다.
-- 계정·그룹·디렉토리 권한이 최소 권한 원칙에 맞게 적용되어야 합니다.
-- 앱의 Boot Sequence 5단계가 모두 통과하고 `Agent READY`가 출력되어야 합니다.
-- `monitor.sh`가 프로세스, 포트, 방화벽, CPU, 메모리, 디스크를 점검하고 로그를 남겨야 합니다.
-- cron 등록 후 별도 수동 실행 없이 `monitor.log`가 매분 증가해야 합니다.
+### 자동화 스크립트 (Automation Scripts)
+
+- [setup-system.sh](bin/setup-system.sh): 보안, 계정, 권한, 앱 및 cron 구성
+- [start-agent.sh](bin/start-agent.sh): 일반 계정 앱 실행
+- [monitor.sh](bin/monitor.sh): 프로세스, 포트, 방화벽 및 시스템 자원 점검
+- [run-monitor.sh](bin/run-monitor.sh): cron 실행 환경 로드
+- [report.sh](bin/report.sh): 자원 통계 및 기간 필터링
+- [archive-logs.sh](bin/archive-logs.sh): 로그 압축, 보관 및 삭제
+- [verify-system.sh](bin/verify-system.sh): 시스템 설정 검증
+- [collect-evidence.sh](bin/collect-evidence.sh): 제출용 증빙 수집
+
+### 참고 문서 (Additional Documentation)
+
+- [execution-report.md](docs/execution-report.md): 요구사항 수행 내역서
+- [증빙 수집 안내](evidence/README.md)
+- [Ubuntu 통합 검증 요약](evidence/ubuntu-integration-summary.md)
+- [Ubuntu 24.04 원본 증빙](evidence/ubuntu-24.04/integration-20261010-refactor/)
+- [기존 Ubuntu 22.04 원본 증빙](evidence/ubuntu-22.04/integration-20260818/)

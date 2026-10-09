@@ -1,0 +1,41 @@
+$ /workspace/bin/verify-system.sh --wait-cron
+====== AGENT SYSTEM VERIFICATION ======
+[PASS] SSH effective port is only 20022
+[PASS] Root SSH login is disabled
+[PASS] SSH port 20022 is listening
+[PASS] UFW is active and allows only 20022/tcp and 15034/tcp
+[PASS] Account exists: agent-admin
+[PASS] agent-admin belongs to agent-common
+[PASS] Account exists: agent-dev
+[PASS] agent-dev belongs to agent-common
+[PASS] Account exists: agent-test
+[PASS] agent-test belongs to agent-common
+[PASS] agent-admin belongs to agent-core
+[PASS] agent-dev belongs to agent-core
+[PASS] agent-test is excluded from agent-core
+[PASS] upload_files group/mode is agent-common/2770
+[PASS] api_keys group/mode is agent-core/2770
+[PASS] log directory group/mode is agent-core/2770
+[PASS] upload_files ACL grants agent-common rwx
+[PASS] AGENT_HOME ACL lets agent-common traverse to upload_files
+[PASS] api_keys ACL grants agent-core rwx
+[PASS] log ACL grants agent-core rwx
+[PASS] Environment file exists and is readable
+[PASS] AGENT_HOME is configured
+[PASS] AGENT_PORT is 15034
+[PASS] AGENT_UPLOAD_DIR is configured
+[PASS] AGENT_KEY_PATH is configured
+[PASS] AGENT_LOG_DIR is configured
+[PASS] Key content is correct
+[PASS] Key owner/group/mode is agent-admin/agent-core/660
+[PASS] monitor.sh owner/group/mode is agent-dev/agent-core/750
+[PASS] agent-admin can execute monitor.sh
+[PASS] Agent process is running
+[PASS] Agent process runs as agent-admin
+[PASS] Boot Sequence has five OK steps and Agent READY
+[PASS] Application port 15034 is listening
+[PASS] agent-admin cron entry is installed
+[PASS] cron adds a monitor.log line within 70 seconds
+[PASS] monitor.log contains a valid recent record
+----------------------------------------
+Verification result: passed=37 failed=0

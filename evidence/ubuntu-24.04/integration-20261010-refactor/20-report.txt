@@ -1,0 +1,16 @@
+$ /home/agent-admin/agent-app/bin/report.sh --log /var/log/agent-app/monitor.log
+====== STATISTICS REPORT ======
+[CPU]
+Average : 7.6%
+Maximum : 25.3% at 2026-10-09 15:44:12
+Minimum : 0.1% at 2026-10-09 15:44:02
+[Memory]
+Average : 9.2%
+Maximum : 11.0% at 2026-10-09 15:44:12
+Minimum : 8.5% at 2026-10-09 15:43:02
+[Disk]
+Average : 21.0%
+Maximum : 81.0% at 2026-10-09 15:44:12
+Minimum : 1.0% at 2026-10-09 15:42:59
+[Samples]
+Data Points: 4 samples

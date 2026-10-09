@@ -1,0 +1,14 @@
+$ runuser -u agent-admin -- /home/agent-admin/agent-app/bin/run-monitor.sh
+====== SYSTEM MONITOR RESULT ======
+
+[HEALTH CHECK]
+Checking process 'agent_app.py|agent-app-linux-(x86|arm64)'... [OK] (PID: 4417)
+Checking port 15034... [OK]
+Checking firewall... [OK]
+
+[RESOURCE MONITORING]
+CPU Usage : 0.4%
+MEM Usage : 8.2%
+DISK Used : 1.0%
+
+[INFO] Log appended: /var/log/agent-app/monitor.log

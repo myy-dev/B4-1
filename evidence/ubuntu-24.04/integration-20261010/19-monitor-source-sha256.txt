@@ -1,0 +1,3 @@
+$ sha256sum /workspace/bin/monitor.sh /home/agent-admin/agent-app/bin/monitor.sh
+b57c3ee9650f16d4317d5e2f508bd73e3ea4141c42e919b22cf807ec1c769f69  /workspace/bin/monitor.sh
+b57c3ee9650f16d4317d5e2f508bd73e3ea4141c42e919b22cf807ec1c769f69  /home/agent-admin/agent-app/bin/monitor.sh
