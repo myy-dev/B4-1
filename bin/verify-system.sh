@@ -38,10 +38,25 @@ user_in_group() {
 }
 
 path_has_group_and_mode() {
-  local path="$1" expected_group="$2" expected_mode="$3" group mode
-  group=$(stat -c %G "$path" 2>/dev/null) || return 1
-  mode=$(stat -c %a "$path" 2>/dev/null) || return 1
-  [[ "$group" == "$expected_group" && "$mode" == "$expected_mode" ]]
+  local path="$1" expected_group="$2" expected_mode="$3" metadata
+  metadata=$(stat -c '%G:%a' "$path" 2>/dev/null) || return 1
+  [[ "$metadata" == "${expected_group}:${expected_mode}" ]]
+}
+
+path_metadata_is() {
+  local path="$1" expected="$2" metadata
+  metadata=$(stat -c '%U:%G:%a' "$path" 2>/dev/null) || return 1
+  [[ "$metadata" == "$expected" ]]
+}
+
+acl_contains() {
+  local path="$1" group="$2" permissions="$3"
+  getfacl -cp "$path" 2>/dev/null | grep -Fxq "group:${group}:${permissions}"
+}
+
+file_content_is() {
+  local path="$1" expected="$2"
+  [[ -r "$path" ]] && [[ $(< "$path") == "$expected" ]]
 }
 
 sshd_effective_contains() {
@@ -54,7 +69,8 @@ sshd_only_port_20022() {
 }
 
 port_listening() {
-  ss -H -ltn 2>/dev/null | awk -v suffix=":${AGENT_PORT}" '$4 ~ suffix "$" { found = 1 } END { exit(found ? 0 : 1) }'
+  local port="$1"
+  ss -H -ltn 2>/dev/null | awk -v suffix=":${port}" '$4 ~ suffix "$" { found = 1 } END { exit(found ? 0 : 1) }'
 }
 
 ufw_only_required_ports() {
@@ -112,7 +128,7 @@ printf '====== AGENT SYSTEM VERIFICATION ======\n'
 
 check 'SSH effective port is only 20022' sshd_only_port_20022
 check 'Root SSH login is disabled' sshd_effective_contains permitrootlogin no
-check 'SSH port 20022 is listening' bash -c "ss -H -ltn | awk '\$4 ~ /:20022\$/ { found=1 } END { exit(found ? 0 : 1) }'"
+check 'SSH port 20022 is listening' port_listening 20022
 check 'UFW is active and allows only 20022/tcp and 15034/tcp' ufw_only_required_ports
 
 for user in agent-admin agent-dev agent-test; do
@@ -130,10 +146,10 @@ fi
 check 'upload_files group/mode is agent-common/2770' path_has_group_and_mode "${AGENT_HOME}/upload_files" agent-common 2770
 check 'api_keys group/mode is agent-core/2770' path_has_group_and_mode "${AGENT_HOME}/api_keys" agent-core 2770
 check 'log directory group/mode is agent-core/2770' path_has_group_and_mode "$AGENT_LOG_DIR" agent-core 2770
-check 'upload_files ACL grants agent-common rwx' bash -c "getfacl -cp '${AGENT_HOME}/upload_files' | grep -Eq '^group:agent-common:rwx$'"
-check 'AGENT_HOME ACL lets agent-common traverse to upload_files' bash -c "getfacl -cp '${AGENT_HOME}' | grep -Eq '^group:agent-common:--x$'"
-check 'api_keys ACL grants agent-core rwx' bash -c "getfacl -cp '${AGENT_HOME}/api_keys' | grep -Eq '^group:agent-core:rwx$'"
-check 'log ACL grants agent-core rwx' bash -c "getfacl -cp '${AGENT_LOG_DIR}' | grep -Eq '^group:agent-core:rwx$'"
+check 'upload_files ACL grants agent-common rwx' acl_contains "${AGENT_HOME}/upload_files" agent-common rwx
+check 'AGENT_HOME ACL lets agent-common traverse to upload_files' acl_contains "$AGENT_HOME" agent-common --x
+check 'api_keys ACL grants agent-core rwx' acl_contains "${AGENT_HOME}/api_keys" agent-core rwx
+check 'log ACL grants agent-core rwx' acl_contains "$AGENT_LOG_DIR" agent-core rwx
 
 check 'Environment file exists and is readable' test -r "$ENV_FILE"
 check 'AGENT_HOME is configured' grep -Fxq "AGENT_HOME=${AGENT_HOME}" "$ENV_FILE"
@@ -141,17 +157,15 @@ check 'AGENT_PORT is 15034' grep -Fxq 'AGENT_PORT=15034' "$ENV_FILE"
 check 'AGENT_UPLOAD_DIR is configured' grep -Fxq "AGENT_UPLOAD_DIR=${AGENT_HOME}/upload_files" "$ENV_FILE"
 check 'AGENT_KEY_PATH is configured' grep -Fxq "AGENT_KEY_PATH=${AGENT_HOME}/api_keys/t_secret.key" "$ENV_FILE"
 check 'AGENT_LOG_DIR is configured' grep -Fxq "AGENT_LOG_DIR=${AGENT_LOG_DIR}" "$ENV_FILE"
-check 'Key content is correct' bash -c "[[ \$(< '${AGENT_HOME}/api_keys/t_secret.key') == agent_api_key_test ]]"
-check 'Key owner/group/mode is agent-admin/agent-core/660' bash -c \
-  "[[ \$(stat -c '%U:%G:%a' '${AGENT_HOME}/api_keys/t_secret.key') == agent-admin:agent-core:660 ]]"
+check 'Key content is correct' file_content_is "${AGENT_HOME}/api_keys/t_secret.key" agent_api_key_test
+check 'Key owner/group/mode is agent-admin/agent-core/660' path_metadata_is "${AGENT_HOME}/api_keys/t_secret.key" agent-admin:agent-core:660
 
-check 'monitor.sh owner/group/mode is agent-dev/agent-core/750' bash -c \
-  "[[ \$(stat -c '%U:%G:%a' '${AGENT_HOME}/bin/monitor.sh') == agent-dev:agent-core:750 ]]"
+check 'monitor.sh owner/group/mode is agent-dev/agent-core/750' path_metadata_is "${AGENT_HOME}/bin/monitor.sh" agent-dev:agent-core:750
 check 'agent-admin can execute monitor.sh' runuser -u agent-admin -- test -x "${AGENT_HOME}/bin/monitor.sh"
 check 'Agent process is running' pgrep -f "$PROCESS_PATTERN"
 check 'Agent process runs as agent-admin' agent_runs_as_admin
 check 'Boot Sequence has five OK steps and Agent READY' boot_sequence_passed
-check 'Application port 15034 is listening' port_listening
+check 'Application port 15034 is listening' port_listening "$AGENT_PORT"
 check 'agent-admin cron entry is installed' cron_installed
 if ((WAIT_CRON)); then
   check 'cron adds a monitor.log line within 70 seconds' cron_adds_log_line

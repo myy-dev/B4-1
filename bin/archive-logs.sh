@@ -64,29 +64,25 @@ delete_archive() {
   fi
 }
 
-if [[ "$ARCHIVE_ALL" == "1" ]]; then
-  while IFS= read -r -d '' file; do
-    archive_file "$file"
-  done < <(find "$LOG_DIR" -maxdepth 1 -type f -name '*.log' -print0 2>/dev/null)
-else
+archive_filter=(-type f)
+if [[ "$ARCHIVE_ALL" != "1" ]]; then
   archive_mtime=$((ARCHIVE_AFTER_DAYS - 1))
   ((archive_mtime >= 0)) || archive_mtime=0
-  while IFS= read -r -d '' file; do
-    archive_file "$file"
-  done < <(find "$LOG_DIR" -maxdepth 1 -type f -name '*.log' -mtime "+${archive_mtime}" -print0 2>/dev/null)
+  archive_filter+=(-mtime "+${archive_mtime}")
 fi
+while IFS= read -r -d '' file; do
+  archive_file "$file"
+done < <(find "$LOG_DIR" -maxdepth 1 -name '*.log' "${archive_filter[@]}" -print0 2>/dev/null)
 
-if [[ "$DELETE_ALL" == "1" ]]; then
-  while IFS= read -r -d '' file; do
-    delete_archive "$file"
-  done < <(find "$ARCHIVE_DIR" -maxdepth 1 -type f -name '*.gz' -print0 2>/dev/null)
-else
+delete_filter=(-type f)
+if [[ "$DELETE_ALL" != "1" ]]; then
   delete_mtime=$((DELETE_AFTER_DAYS - 1))
   ((delete_mtime >= 0)) || delete_mtime=0
-  while IFS= read -r -d '' file; do
-    delete_archive "$file"
-  done < <(find "$ARCHIVE_DIR" -maxdepth 1 -type f -name '*.gz' -mtime "+${delete_mtime}" -print0 2>/dev/null)
+  delete_filter+=(-mtime "+${delete_mtime}")
 fi
+while IFS= read -r -d '' file; do
+  delete_archive "$file"
+done < <(find "$ARCHIVE_DIR" -maxdepth 1 -name '*.gz' "${delete_filter[@]}" -print0 2>/dev/null)
 
 if ((archived == 0)); then
   printf '[INFO] No log files were old enough to archive.\n'
