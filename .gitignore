@@ -1,9 +1,1 @@
-# Runtime secrets and generated evidence
-config/agent-app.env
-evidence/runs/
-*.pid
-__pycache__/
-*.pyc
-
-# Local editor and OS files
 .DS_Store
