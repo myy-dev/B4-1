@@ -17,18 +17,23 @@ install -d -o agent-admin -g agent-core -m 2770 "$AGENT_HOME" "$AGENT_KEY_PATH" 
 install -d -o agent-admin -g agent-common -m 2770 "$AGENT_UPLOAD_DIR"
 install -d -o agent-dev -g agent-core -m 2750 "$AGENT_HOME/bin"
 setfacl -m g:agent-common:--x /home/agent-admin "$AGENT_HOME"
-setfacl -m g:agent-common:rwx,m:rwx "$AGENT_UPLOAD_DIR"
-setfacl -d -m u::rwx,g::rwx,g:agent-common:rwx,m::rwx,o::--- "$AGENT_UPLOAD_DIR"
-setfacl -m g:agent-core:rwx,m:rwx "$AGENT_KEY_PATH" "$AGENT_LOG_DIR"
-setfacl -d -m u::rwx,g::rwx,g:agent-core:rwx,m::rwx,o::--- "$AGENT_KEY_PATH" "$AGENT_LOG_DIR"
 
-case "$(uname -m)" in
-  x86_64) app=agent-app-linux-x86 ;;
-  aarch64) app=agent-app-linux-arm64 ;;
-  *) echo 'Unsupported architecture' >&2; exit 1 ;;
-esac
-install -o agent-admin -g agent-core -m 0750 "app/$app" "$AGENT_HOME/agent-app"
-install -o agent-dev -g agent-core -m 0750 scripts/monitor.sh "$AGENT_HOME/bin/monitor.sh"
+# 기존 확장 ACL 제거 및 새 항목의 소유자·그룹 rwx, 그 외 사용자 --- 권한 상속
+setfacl -b "$AGENT_UPLOAD_DIR" "$AGENT_KEY_PATH" "$AGENT_LOG_DIR"
+setfacl -d --set u::rwx,g::rwx,o::--- \
+  "$AGENT_UPLOAD_DIR" \
+  "$AGENT_KEY_PATH" \
+  "$AGENT_LOG_DIR"
+
+# AMD64 제공 앱과 관제 스크립트·키 파일 배치
+# install 명령을 통한 파일 복사와 소유자·그룹·권한 고정
+install -o agent-admin -g agent-core -m 0750 \
+  app/agent-app-linux-x86 "$AGENT_HOME/agent-app"
+
+install -o agent-dev -g agent-core -m 0750 \
+  scripts/monitor.sh "$AGENT_HOME/bin/monitor.sh"
+
+# 제공 앱 시작 시 사용할 과제용 API 키 생성
 printf 'agent_api_key_test\n' > "$AGENT_KEY_PATH/secret.key"
 chown agent-admin:agent-core "$AGENT_KEY_PATH/secret.key"
 chmod 0660 "$AGENT_KEY_PATH/secret.key"
