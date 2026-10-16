@@ -2,15 +2,15 @@
 
 ## 프로젝트 개요 (Project Overview)
 
-Linux 서버의 보안·계정·권한을 구성하고, Bash 스크립트로 제공 앱과 시스템 자원을 점검해 로그로 기록합니다.
+Linux 서버의 보안·계정·권한 구성 및 Bash 스크립트를 통한 제공 앱·시스템 자원 점검과 로그 기록 자동화 프로젝트
 
 ## 실행 환경 (Environment)
 
 - **운영체제**: Docker의 Ubuntu 24.04 LTS
-- **기본 아키텍처**: AMD64 (ARM64 호스트에서는 에뮬레이션)
-- **제공 앱**: `app/agent-app-linux-x86`, `app/agent-app-linux-arm64`
-- **실행 계정**: 일반 사용자 `agent-admin`
-- **사용 도구**: Bash, OpenSSH, UFW, cron, ACL, `ps`, `ss`, `df`
+- **아키텍처**: AMD64
+- **제공 앱**: `app/agent-app-linux-x86`
+- **실행 계정**: `agent-admin`
+- **사용 도구**: Bash, OpenSSH, UFW, cron, ACL
 - **포트**: SSH `20022/tcp`, 앱 `15034/tcp`
 
 ## 프로젝트 구조 (Project Structure)
@@ -21,15 +21,35 @@ Linux 서버의 보안·계정·권한을 구성하고, Bash 스크립트로 제
 ├── Dockerfile
 ├── compose.yaml
 ├── app/
-│   ├── agent-app-linux-x86
-│   └── agent-app-linux-arm64
+│   └── agent-app-linux-x86
 ├── scripts/
 │   ├── setup.sh             # 컨테이너의 계정·권한·SSH·UFW·cron 설정
 │   ├── start.sh             # 설정 후 SSH·cron·제공 앱 실행
 │   └── monitor.sh           # 상태 점검·경고·로그 기록·크기 기반 로그 회전
 └── docs/
-    ├── docker-demo.md       # Docker 실행·점검·종료 안내
-    └── execution-report.md  # 수행 내역·필수 체크리스트·명령 실행 결과
+    ├── USER_DEMO.md         # Docker 실행·점검·종료 안내
+    ├── execution-report.md  # 수행 내역·필수 체크리스트·명령 실행 결과
+    ├── permissions.md       # 계정·그룹별 접근 권한 설명
+    ├── cron.md              # cron 시간 항목·실행 주기 예시
+    └── monitoring-logs.md   # 로그 기록 흐름·출력 해석·과제 증빙
+```
+
+### 프로젝트 흐름
+
+```text
+컨테이너 시작
+     │
+     ▼
+ start.sh 실행
+     │
+     ├─ setup.sh ── 계정·권한·SSH·방화벽·cron 설정
+     │
+     ├─ sshd ────── SSH 접속 제공
+     │
+     ├─ cron ────── monitor.sh 매분 실행
+     │
+     └─ agent-app ─ 실제 서비스 실행
+                    (agent-admin 권한)
 ```
 
 ## 수행 항목 체크리스트
@@ -63,8 +83,6 @@ Linux 서버의 보안·계정·권한을 구성하고, Bash 스크립트로 제
 - [x] `id`, `ls -l`로 계정·그룹·권한 확인하고 ACL 사용 시 `getfacl`로 추가 확인
 
 ### 애플리케이션 실행 환경
-
-> 과제에서 제공한 ARM64·x86 실행 파일을 사용합니다. 설치 시 아키텍처에 맞는 파일을 `$AGENT_HOME/agent-app`으로 복사합니다. 실제 제공 앱은 `AGENT_KEY_PATH`에 디렉토리를 받고 그 안의 `secret.key`를 읽으므로 해당 실행 규약에 맞춰 구성했습니다.
 
 - [x] `AGENT_HOME` 설정(예: `/home/agent-admin/agent-app`)
 - [x] `AGENT_PORT=15034` 설정
@@ -106,8 +124,6 @@ Linux 서버의 보안·계정·권한을 구성하고, Bash 스크립트로 제
 - [x] `agent-admin` 계정의 crontab에 `monitor.sh` 매분 실행 등록
 - [x] 등록 후 1~2분 내 `monitor.log`에 새 로그가 추가되는지 확인
 
-> cron 실행 환경에 필요한 환경 변수를 명시하고, 권한 오류나 경로 오류가 없는지 확인합니다.
-
 ### 구현 언어 및 권한 원칙
 
 - [x] 자동화 스크립트를 Bash로만 구현
@@ -129,7 +145,10 @@ Linux 서버의 보안·계정·권한을 구성하고, Bash 스크립트로 제
 
 ## 결과물 (Deliverables)
 
-- [monitor.sh](scripts/monitor.sh): 제출용 관제 스크립트 전체 소스
-- [수행 내역서](docs/execution-report.md): 필수 증거 자료 체크리스트, 설정 명령과 실제 출력
-
-제공 앱은 `AGENT_KEY_PATH`에 디렉토리 경로를 받고 그 안의 `secret.key`를 읽습니다. 과제용 값 `agent_api_key_test`는 컨테이너 설정 시 생성됩니다.
+| 문서 | 내용 |
+| --- | --- |
+| [계정·그룹별 권한](docs/permissions.md) | 계정 구성·접근 권한·ACL과 권한 상속 |
+| [cron 실행 주기](docs/cron.md) | 시간 항목 순서·실행 주기 예시 다이어그램 |
+| [모니터링 로그 읽기](docs/monitoring-logs.md) | 두 로그의 차이·기록 흐름·출력 해석·과제 요구사항 증빙 |
+| [수행 내역서](docs/execution-report.md) | 요구사항별 설정 명령·실행 결과·증빙 |
+| [평가 시연 가이드](docs/USER_DEMO.md) | 실행부터 종료까지 시연 순서·명령어·확인 기준 |
