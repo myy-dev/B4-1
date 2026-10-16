@@ -2,13 +2,14 @@ FROM ubuntu:24.04
 
 RUN apt-get update \
     && DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends \
-       openssh-server ufw acl cron procps iproute2 \
+       openssh-server ufw acl cron procps iproute2 sudo \
     && rm -rf /var/lib/apt/lists/*
 
 WORKDIR /opt/agent-lab
 COPY app/ ./app/
 COPY scripts/ ./scripts/
-RUN chmod +x ./scripts/*.sh
+RUN chmod +x ./scripts/*.sh \
+    && rm -f /etc/ssh/ssh_host_*
 
 EXPOSE 20022/tcp 15034/tcp
 

@@ -18,6 +18,7 @@ services:
       - "127.0.0.1:15034:15034"
     volumes:
       - agent-logs:/var/log/agent-app
+      - ${HOME}/.ssh/b4-1-demo.pub:/run/agent-admin.pub:ro
 
 volumes:
   agent-logs:
