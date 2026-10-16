@@ -1,113 +1,473 @@
 # 요구사항 수행 내역서
 
-## 수행 환경
+## 수행 환경과 실행 방법
 
-| 항목 | 값 |
-| --- | --- |
-| 수행 일시 | `2026-10-10 00:44:12 +0900` |
-| 수행 환경 | Docker Desktop 격리 컨테이너 |
-| 운영체제 | Ubuntu 24.04.5 LTS |
-| 아키텍처 | `aarch64` |
-| AGENT_HOME | `/home/agent-admin/agent-app` |
-| 애플리케이션 | 제공 파일 부재로 계약 호환 참조 앱 사용 |
-| 원본 증빙 | [`evidence/ubuntu-24.04/integration-20261010-refactor/`](../evidence/ubuntu-24.04/integration-20261010-refactor/) |
-
-운영체제와 아키텍처 원본 출력은 [`00-system.txt`](../evidence/ubuntu-24.04/integration-20261010-refactor/00-system.txt)에서 확인할 수 있습니다.
-
-## 설정 및 명령어 기록
-
-### 자동 설치
+- 검증 일시: 2026-10-16 (아래 출력의 시간은 컨테이너 UTC 기준)
+- 환경: Docker Compose의 Ubuntu 24.04 LTS AMD64 서버
+- 제공 앱: `app/agent-app-linux-x86` → `/home/agent-admin/agent-app/agent-app`
+- 실행 계정: `agent-admin`
+- 구성: `scripts/setup.sh`, `scripts/start.sh`, `scripts/monitor.sh`
 
 ```bash
-./bin/setup-system.sh --apply --reset-firewall --start-app
-./bin/setup-system.sh --apply --reset-firewall --start-app
+docker compose up --build --wait
 ```
 
-Root로 실행되는 격리 컨테이너에서 같은 명령을 연속 두 번 실행해 신규 설치와 재실행이 모두 성공하는지 확인했습니다. 두 번째 실행은 기존 계정·그룹·설정을 재사용하고 실행 중인 앱을 중복 기동하지 않았습니다. 일반 Ubuntu VM에서는 같은 명령 앞에 `sudo`를 붙입니다.
-
-### SSH 및 방화벽
-
-- SSH 유효 포트: `20022` 하나
-- Root 로그인: `PermitRootLogin no`
-- UFW: active
-- 기본 인바운드 정책: deny
-- 허용 인바운드: `20022/tcp`, `15034/tcp`만 허용
-- 증빙: [`01-sshd-effective.txt`](../evidence/ubuntu-24.04/integration-20261010-refactor/01-sshd-effective.txt), [`02-listening-ports.txt`](../evidence/ubuntu-24.04/integration-20261010-refactor/02-listening-ports.txt), [`03-firewall.txt`](../evidence/ubuntu-24.04/integration-20261010-refactor/03-firewall.txt)
-
-### 계정 및 그룹
-
-- `agent-admin`: `agent-common`, `agent-core`
-- `agent-dev`: `agent-common`, `agent-core`
-- `agent-test`: `agent-common`만 포함
-- 증빙: [`04-agent-admin.txt`](../evidence/ubuntu-24.04/integration-20261010-refactor/04-agent-admin.txt), [`05-agent-dev.txt`](../evidence/ubuntu-24.04/integration-20261010-refactor/05-agent-dev.txt), [`06-agent-test.txt`](../evidence/ubuntu-24.04/integration-20261010-refactor/06-agent-test.txt)
-
-### 디렉토리 및 권한
-
-- `$AGENT_HOME/upload_files`: `agent-admin:agent-common`, mode `2770`, `agent-common:rwx` ACL
-- `$AGENT_HOME/api_keys`: `agent-admin:agent-core`, mode `2770`, `agent-core:rwx` ACL
-- `/var/log/agent-app`: `agent-admin:agent-core`, mode `2770`, `agent-core:rwx` ACL
-- `monitor.sh`: `agent-dev:agent-core`, mode `750`
-- 증빙: [`07-agent-home.txt`](../evidence/ubuntu-24.04/integration-20261010-refactor/07-agent-home.txt), [`08-upload-acl.txt`](../evidence/ubuntu-24.04/integration-20261010-refactor/08-upload-acl.txt), [`09-api-keys-acl.txt`](../evidence/ubuntu-24.04/integration-20261010-refactor/09-api-keys-acl.txt), [`10-log-acl.txt`](../evidence/ubuntu-24.04/integration-20261010-refactor/10-log-acl.txt)
-
-### 환경 변수와 cron
-
-- `AGENT_HOME=/home/agent-admin/agent-app`
-- `AGENT_PORT=15034`
-- `AGENT_UPLOAD_DIR=/home/agent-admin/agent-app/upload_files`
-- `AGENT_KEY_PATH=/home/agent-admin/agent-app/api_keys/t_secret.key`
-- `AGENT_LOG_DIR=/var/log/agent-app`
-- cron 실행 계정: `agent-admin`
-- cron 주기: 매분
-- 증빙: [`11-environment.txt`](../evidence/ubuntu-24.04/integration-20261010-refactor/11-environment.txt), [`12-crontab.txt`](../evidence/ubuntu-24.04/integration-20261010-refactor/12-crontab.txt)
+Compose의 환경 변수로 앱 경로와 포트를 지정하고, 시작 스크립트가 계정·권한·SSH·UFW·cron을 설정한 뒤 앱을 실행합니다. 앱과 모니터링 로그는 `/var/log/agent-app` 볼륨에 보존됩니다. 제공 앱이 요구하는 키는 `AGENT_KEY_PATH` 디렉토리의 `secret.key`이며, 설정 시 과제용 값 `agent_api_key_test`를 생성합니다.
 
 ## 필수 증거 자료 체크리스트
 
-- [x] SSH 포트 `20022` 및 Root 원격 접속 차단 확인
-- [x] UFW 활성화 및 `20022/tcp`, `15034/tcp`만 허용 확인
-- [x] 세 계정과 두 그룹의 구성원 확인
-- [x] 디렉토리 구조·소유권·권한·ACL 확인
-- [x] Boot Sequence 5단계 `[OK]`와 `Agent READY` 확인
-- [x] `monitor.sh` 프로세스·포트·리소스·경고 출력 확인
-- [x] `monitor.log` 최근 누적 기록 확인
-- [x] cron 등록 전후 로그 행 수 증가 확인
-- [x] 제출본의 `monitor.sh`와 서버 설치본 일치 확인
+- [x] SSH 포트 `20022`와 Root 원격 로그인 차단
+- [x] UFW 활성화, 기본 인바운드 차단, TCP `20022`·`15034`만 허용
+- [x] 세 계정과 `agent-common`·`agent-core` 그룹 구성
+- [x] 디렉토리 구조·소유권·권한·ACL과 실제 접근 가능 여부
+- [x] 환경 변수와 `agent-admin`의 매분 cron 등록
+- [x] 제공 앱의 Boot Sequence 5단계 `[OK]`, `Agent READY`, 일반 계정 실행
+- [x] 프로세스·포트·시스템 자원 점검과 경고, 장애 시 종료 코드 `1`
+- [x] 지정 포맷의 최근 모니터링 로그와 cron에 의한 로그 증가
+- [x] `monitor.sh` 전체 소스 제출 및 설치본 일치
 
-## 애플리케이션 실행 결과
+아래에 설정 명령과 실제 실행 출력을 함께 기록했습니다. 명령은 다음으로 진입한 컨테이너 셸 기준입니다.
 
-- 프로세스 소유자: `agent-admin`
-- Boot Sequence: 5/5 `[OK]`
-- 최종 상태: `Agent READY`
-- LISTEN: `0.0.0.0:15034`
-- 증빙: [`13-agent-process.txt`](../evidence/ubuntu-24.04/integration-20261010-refactor/13-agent-process.txt), [`14-agent-boot.txt`](../evidence/ubuntu-24.04/integration-20261010-refactor/14-agent-boot.txt)
+```bash
+docker compose exec server bash
+```
 
-제공된 `agent-app.zip`이 저장소에 없어 이번 실행은 동일한 Boot Sequence와 포트 계약을 구현한 참조 앱으로 수행했습니다. 설치 스크립트는 제공 ZIP 또는 아키텍처별 실행 파일이 추가되면 이를 우선 설치합니다.
+## 실행 환경
 
-## 모니터링 및 cron 결과
+```bash
+date -Is; . /etc/os-release; echo "$PRETTY_NAME"; uname -m
+```
 
-- 수동 실행: 프로세스, TCP `15034`, UFW 모두 `[OK]`
-- 수집값: CPU, 메모리, 루트 디스크 사용률 정상 출력
-- 경고 경로: CPU `25.3%`, 메모리 `11.0%`, 디스크 `81.0%`에서 세 `[WARNING]` 출력 후 로그 기록
-- 누적 로그: 지정된 PID·CPU·MEM·DISK 포맷과 일치
-- cron 대기 전 로그: 1줄
-- cron 대기 후 로그: 3줄
-- 판정: 70초 이내 2줄 증가, PASS
-- 전체 검증: `passed=37 failed=0`
-- 증빙: [`15-monitor-log.txt`](../evidence/ubuntu-24.04/integration-20261010-refactor/15-monitor-log.txt), [`16-monitor-run.txt`](../evidence/ubuntu-24.04/integration-20261010-refactor/16-monitor-run.txt), [`17-system-verification.txt`](../evidence/ubuntu-24.04/integration-20261010-refactor/17-system-verification.txt), [`18-cron-growth.txt`](../evidence/ubuntu-24.04/integration-20261010-refactor/18-cron-growth.txt), [`21-monitor-warning.txt`](../evidence/ubuntu-24.04/integration-20261010-refactor/21-monitor-warning.txt)
+```text
+2026-10-16T01:22:10+00:00
+Ubuntu 24.04.5 LTS
+x86_64
+```
 
-저장소와 서버에 설치된 `monitor.sh`의 SHA-256 값도 일치합니다. 증빙은 [`19-monitor-source-sha256.txt`](../evidence/ubuntu-24.04/integration-20261010-refactor/19-monitor-source-sha256.txt), 제출 소스는 [`monitor.sh`](../evidence/ubuntu-24.04/integration-20261010-refactor/monitor.sh)입니다.
+## SSH·포트·방화벽
 
-## 보너스 수행 결과
+```bash
+sshd -T | sed -n '/^port /p; /^permitrootlogin /p'; ss -tulnp; ufw status verbose
+```
 
-- 통계 리포트: CPU·메모리·디스크 평균·최대·최소와 샘플 4개 출력 — [`20-report.txt`](../evidence/ubuntu-24.04/integration-20261010-refactor/20-report.txt)
-- 기간 필터: `tests/run.sh`에서 지정 구간 샘플 수를 검증
-- 로그 보존: `tests/run.sh`에서 압축, 아카이브 이동, 30일 경과 삭제를 검증
-- 예외 처리: 대상 디렉토리 미존재 시 경고 후 안전 종료를 검증
+```text
+port 20022
+permitrootlogin no
+Netid State  Recv-Q Send-Q Local Address:Port  Peer Address:PortProcess
+udp   UNCONN 0      0         127.0.0.11:50983      0.0.0.0:*
+tcp   LISTEN 0      1            0.0.0.0:15034      0.0.0.0:*
+tcp   LISTEN 0      4096      127.0.0.11:42839      0.0.0.0:*
+tcp   LISTEN 0      128          0.0.0.0:20022      0.0.0.0:*    users:(("sshd",pid=253,fd=3))
+tcp   LISTEN 0      128             [::]:20022         [::]:*    users:(("sshd",pid=253,fd=4))
+Status: active
+Logging: on (low)
+Default: deny (incoming), allow (outgoing), deny (routed)
+New profiles: skip
 
-## 설계 근거
+To                         Action      From
+--                         ------      ----
+20022/tcp                  ALLOW IN    Anywhere
+15034/tcp                  ALLOW IN    Anywhere
+20022/tcp (v6)             ALLOW IN    Anywhere (v6)
+15034/tcp (v6)             ALLOW IN    Anywhere (v6)
+```
 
-- 기본 SSH 포트를 변경하고 Root 로그인을 차단하면 자동 스캔 노출과 고권한 직접 로그인의 위험을 줄일 수 있습니다.
-- UFW 기본 인바운드를 차단하고 필요한 두 포트만 허용해 서비스 공격 표면을 제한합니다.
-- 공용 그룹과 핵심 그룹을 분리해 업로드 영역은 협업 가능하게 하고 키·로그 영역은 최소 인원만 접근하게 합니다.
-- 환경 변수로 경로와 포트를 고정하면 수동 실행과 cron 실행이 같은 설정을 사용합니다.
-- 매분 상태와 자원값을 동일 포맷으로 축적하면 장애 시점의 상태를 추적하고 통계로 분석할 수 있습니다.
-- 크기 기반 회전과 시간 기반 압축·삭제는 디스크 고갈을 방지하면서 필요한 기간의 기록을 보존합니다.
+## 계정·그룹
+
+```bash
+id agent-admin; id agent-dev; id agent-test; getent group agent-common agent-core
+```
+
+```text
+uid=1001(agent-admin) gid=1003(agent-admin) groups=1003(agent-admin),1001(agent-common),1002(agent-core)
+uid=1002(agent-dev) gid=1004(agent-dev) groups=1004(agent-dev),1001(agent-common),1002(agent-core)
+uid=1003(agent-test) gid=1005(agent-test) groups=1005(agent-test),1001(agent-common)
+agent-common:x:1001:agent-admin,agent-dev,agent-test
+agent-core:x:1002:agent-admin,agent-dev
+```
+
+## 디렉토리 권한·ACL
+
+```bash
+ls -ld /home/agent-admin/agent-app /home/agent-admin/agent-app/{bin,upload_files,api_keys} /var/log/agent-app; ls -l /home/agent-admin/agent-app/bin/monitor.sh /home/agent-admin/agent-app/api_keys/secret.key; getfacl -p /home/agent-admin /home/agent-admin/agent-app /home/agent-admin/agent-app/upload_files /home/agent-admin/agent-app/api_keys /var/log/agent-app
+```
+
+```text
+drwxrws---+ 5 agent-admin agent-core   4096 Oct 16 01:21 /home/agent-admin/agent-app
+drwxrws---+ 2 agent-admin agent-core   4096 Oct 16 01:21 /home/agent-admin/agent-app/api_keys
+drwxr-s---  2 agent-dev   agent-core   4096 Oct 16 01:21 /home/agent-admin/agent-app/bin
+drwxrws---+ 2 agent-admin agent-common 4096 Oct 16 01:21 /home/agent-admin/agent-app/upload_files
+drwxrws---+ 2 agent-admin agent-core   4096 Oct 16 01:21 /var/log/agent-app
+-rw-rw----+ 1 agent-admin agent-core   19 Oct 16 01:21 /home/agent-admin/agent-app/api_keys/secret.key
+-rwxr-x---  1 agent-dev   agent-core 5160 Oct 16 01:21 /home/agent-admin/agent-app/bin/monitor.sh
+# file: /home/agent-admin
+# owner: agent-admin
+# group: agent-admin
+user::rwx
+group::r-x
+group:agent-common:--x
+mask::r-x
+other::---
+
+# file: /home/agent-admin/agent-app
+# owner: agent-admin
+# group: agent-core
+# flags: -s-
+user::rwx
+group::rwx
+group:agent-common:--x
+mask::rwx
+other::---
+
+# file: /home/agent-admin/agent-app/upload_files
+# owner: agent-admin
+# group: agent-common
+# flags: -s-
+user::rwx
+group::rwx
+group:agent-common:rwx
+mask::rwx
+other::---
+default:user::rwx
+default:group::rwx
+default:group:agent-common:rwx
+default:mask::rwx
+default:other::---
+
+# file: /home/agent-admin/agent-app/api_keys
+# owner: agent-admin
+# group: agent-core
+# flags: -s-
+user::rwx
+group::rwx
+group:agent-core:rwx
+mask::rwx
+other::---
+default:user::rwx
+default:group::rwx
+default:group:agent-core:rwx
+default:mask::rwx
+default:other::---
+
+# file: /var/log/agent-app
+# owner: agent-admin
+# group: agent-core
+# flags: -s-
+user::rwx
+group::rwx
+group:agent-core:rwx
+mask::rwx
+other::---
+default:user::rwx
+default:group::rwx
+default:group:agent-core:rwx
+default:mask::rwx
+default:other::---
+```
+
+## 계정별 실제 접근 권한
+
+```bash
+runuser -u agent-test -- bash -c 'touch "$AGENT_UPLOAD_DIR/.permission-check" && rm "$AGENT_UPLOAD_DIR/.permission-check" && echo "agent-test: upload write OK"; if cat "$AGENT_KEY_PATH/secret.key" >/dev/null 2>&1; then exit 1; else echo "agent-test: key read DENIED"; fi; if ls "$AGENT_LOG_DIR" >/dev/null 2>&1; then exit 1; else echo "agent-test: log access DENIED"; fi'; runuser -u agent-dev -- bash -c 'test -w "$AGENT_KEY_PATH/secret.key" && test -w "$AGENT_LOG_DIR" && echo "agent-dev: key/log write OK"'
+```
+
+```text
+agent-test: upload write OK
+agent-test: key read DENIED
+agent-test: log access DENIED
+agent-dev: key/log write OK
+```
+
+## 환경 변수·cron 등록
+
+```bash
+env | sort | sed -n '/^AGENT_/p'; crontab -u agent-admin -l
+```
+
+```text
+AGENT_HOME=/home/agent-admin/agent-app
+AGENT_KEY_PATH=/home/agent-admin/agent-app/api_keys
+AGENT_LOG_DIR=/var/log/agent-app
+AGENT_PORT=15034
+AGENT_UPLOAD_DIR=/home/agent-admin/agent-app/upload_files
+* * * * * /home/agent-admin/agent-app/bin/monitor.sh >> /var/log/agent-app/cron.log 2>&1
+```
+
+## 제공 앱 실행
+
+```bash
+ps -C agent-app -o user,pid,args; head -n 15 /var/log/agent-app/agent-app.out
+```
+
+```text
+USER       PID COMMAND
+agent-a+   258 /run/rosetta/rosetta /home/agent-admin/agent-app/agent-app /home/agent-admin/agent-app/agent-app
+agent-a+   259 /run/rosetta/rosetta /home/agent-admin/agent-app/agent-app /home/agent-admin/agent-app/agent-app
+>>> Starting Agent Boot Sequence...
+[1/5] Checking User Account               [OK]
+   ... Running as service user 'agent-admin' (uid=1001)
+[2/5] Verifying Environment Variables     [OK]
+   ... All required Envs correct
+[3/5] Checking Required Files             [OK]
+   ... Verified 'secret.key' with correct key string.
+[4/5] Checking Port Availability          [OK]
+   ... Port 15034 is available.
+[5/5] Verifying Log Permission            [OK]
+   ... Log directory is writable: /var/log/agent-app
+------------------------------------------------------------
+All Boot Checks Passed!
+Agent READY
+2026-10-16 01:21:26,258 [INFO] [SafetyGuard] Process priority lowered (nice=10).
+```
+
+## 일반 사용자 모니터링·최근 로그
+
+```bash
+runuser -u agent-admin -- /home/agent-admin/agent-app/bin/monitor.sh; tail -n 3 /var/log/agent-app/monitor.log
+```
+
+```text
+====== SYSTEM MONITOR RESULT ======
+
+[HEALTH CHECK]
+Checking process '^/home/agent-admin/agent-app/agent-app$'... [OK] (PID: 258)
+Checking port 15034... [OK]
+Checking firewall... [OK]
+
+[RESOURCE MONITORING]
+CPU Usage : 3.7%
+MEM Usage : 12.1%
+DISK Used : 1.0%
+[WARNING] MEM threshold exceeded (12.1% > 10%)
+
+[INFO] Log appended: /var/log/agent-app/monitor.log
+[2026-10-16 01:21:03] PID:306 CPU:3.8% MEM:12.4% DISK_USED:1.0%
+[2026-10-16 01:22:02] PID:258 CPU:4.3% MEM:11.0% DISK_USED:1.0%
+[2026-10-16 01:22:14] PID:258 CPU:3.7% MEM:12.1% DISK_USED:1.0%
+```
+
+## 자원 임계값 경고
+
+기본 임계값은 CPU 20%, 메모리 10%, 디스크 80%입니다. 아래 실행에만 임계값을 0으로 낮춰 실제 측정값으로 세 경고 경로를 확인했습니다. 서버의 기본 설정은 바꾸지 않았습니다.
+
+```bash
+runuser -u agent-admin -- env CPU_THRESHOLD=0 MEM_THRESHOLD=0 DISK_THRESHOLD=0 /home/agent-admin/agent-app/bin/monitor.sh
+```
+
+```text
+====== SYSTEM MONITOR RESULT ======
+
+[HEALTH CHECK]
+Checking process '^/home/agent-admin/agent-app/agent-app$'... [OK] (PID: 258)
+Checking port 15034... [OK]
+Checking firewall... [OK]
+
+[RESOURCE MONITORING]
+CPU Usage : 3.0%
+MEM Usage : 12.1%
+DISK Used : 1.0%
+[WARNING] CPU threshold exceeded (3.0% > 0%)
+[WARNING] MEM threshold exceeded (12.1% > 0%)
+[WARNING] DISK_USED threshold exceeded (1.0% > 0%)
+
+[INFO] Log appended: /var/log/agent-app/monitor.log
+```
+
+## 프로세스·포트 실패 시 종료 코드
+
+```bash
+set +e
+runuser -u agent-admin -- env AGENT_PROCESS_PATTERN="^missing-agent-process$" /home/agent-admin/agent-app/bin/monitor.sh
+process_status=$?
+echo "process exit=$process_status"
+runuser -u agent-admin -- env AGENT_PORT=15035 /home/agent-admin/agent-app/bin/monitor.sh
+port_status=$?
+echo "port exit=$port_status"
+test "$process_status" = 1 && test "$port_status" = 1
+```
+
+```text
+====== SYSTEM MONITOR RESULT ======
+
+[HEALTH CHECK]
+Checking process '^missing-agent-process$'... [FAIL]
+process exit=1
+====== SYSTEM MONITOR RESULT ======
+
+[HEALTH CHECK]
+Checking process '^/home/agent-admin/agent-app/agent-app$'... [OK] (PID: 258)
+Checking port 15035... [FAIL]
+port exit=1
+```
+
+## 방화벽 비활성 경고
+
+UFW를 잠시 비활성화해 경고 후 정상 종료하는지 확인했습니다. 명령 종료 시 UFW를 다시 활성화합니다.
+
+```bash
+(
+  trap 'ufw --force enable >/dev/null' EXIT
+  ufw disable >/dev/null
+  runuser -u agent-admin -- /home/agent-admin/agent-app/bin/monitor.sh
+  echo "monitor exit=$?"
+)
+```
+
+```text
+====== SYSTEM MONITOR RESULT ======
+
+[HEALTH CHECK]
+Checking process '^/home/agent-admin/agent-app/agent-app$'... [OK] (PID: 258)
+Checking port 15034... [OK]
+[WARNING] Firewall is inactive or its status could not be determined.
+
+[RESOURCE MONITORING]
+CPU Usage : 4.5%
+MEM Usage : 12.8%
+DISK Used : 1.0%
+[WARNING] MEM threshold exceeded (12.8% > 10%)
+
+[INFO] Log appended: /var/log/agent-app/monitor.log
+monitor exit=0
+```
+
+## 크기 기반 로그 회전
+
+파일 크기 기본값은 10MB이며, 현재 로그와 이전 로그 9개를 합쳐 최대 10개로 고정합니다. 아래에서는 임시 로그를 매번 200바이트로 채우고 크기 한도만 200바이트로 낮춰 12번 회전시켰습니다. 가장 오래된 기록이 삭제되어 총 10개가 남는지 확인한 후 임시 로그를 삭제했습니다.
+
+```bash
+set -euo pipefail
+rotation_dir=$(mktemp -d)
+trap 'rm -r "$rotation_dir"' EXIT
+chown agent-admin:agent-core "$rotation_dir"
+for iteration in {1..12}; do
+  printf '%0200d' "$iteration" > "$rotation_dir/monitor.log"
+  runuser -u agent-admin -- env AGENT_LOG_DIR="$rotation_dir" LOG_MAX_BYTES=200 /home/agent-admin/agent-app/bin/monitor.sh >/dev/null
+done
+find "$rotation_dir" -name 'monitor.log*' -printf '%f %s bytes\n' | sort
+count=$(find "$rotation_dir" -name 'monitor.log*' | wc -l)
+test "$count" = 10
+test -f "$rotation_dir/monitor.log.9"
+test ! -e "$rotation_dir/monitor.log.10"
+grep -qx '0*4' "$rotation_dir/monitor.log.9"
+find "$rotation_dir" -name 'monitor.log*' -size +200c | (! read)
+echo 'PASS: maximum 10 files; oldest archives discarded'
+```
+
+```text
+monitor.log 64 bytes
+monitor.log.1 200 bytes
+monitor.log.2 200 bytes
+monitor.log.3 200 bytes
+monitor.log.4 200 bytes
+monitor.log.5 200 bytes
+monitor.log.6 200 bytes
+monitor.log.7 200 bytes
+monitor.log.8 200 bytes
+monitor.log.9 200 bytes
+PASS: maximum 10 files; oldest archives discarded
+```
+
+## 제출 소스와 설치본 일치
+
+전체 제출 소스는 [scripts/monitor.sh](../scripts/monitor.sh)입니다. 아래 두 해시가 같습니다.
+
+```bash
+sha256sum /opt/agent-lab/scripts/monitor.sh /home/agent-admin/agent-app/bin/monitor.sh
+```
+
+```text
+910ef6098d6998e807ad46daead81de668fff660919aa4db86384a39abfc8627  /opt/agent-lab/scripts/monitor.sh
+910ef6098d6998e807ad46daead81de668fff660919aa4db86384a39abfc8627  /home/agent-admin/agent-app/bin/monitor.sh
+```
+
+## cron 확인 전 로그
+
+이 시점 이후 수동 모니터링을 실행하지 않고 기다렸습니다. 컨테이너 상태 확인 명령은 모니터링 로그를 기록하지 않습니다.
+
+```bash
+date -Is; wc -l /var/log/agent-app/monitor.log; tail -n 1 /var/log/agent-app/monitor.log
+```
+
+```text
+2026-10-16T01:22:37+00:00
+393 /var/log/agent-app/monitor.log
+[2026-10-16 01:22:21] PID:258 CPU:4.5% MEM:12.8% DISK_USED:1.0%
+```
+
+## cron 확인 후 로그
+
+```bash
+date -Is; wc -l /var/log/agent-app/monitor.log; tail -n 3 /var/log/agent-app/monitor.log
+```
+
+```text
+2026-10-16T01:23:55+00:00
+394 /var/log/agent-app/monitor.log
+[2026-10-16 01:22:15] PID:258 CPU:3.0% MEM:12.1% DISK_USED:1.0%
+[2026-10-16 01:22:21] PID:258 CPU:4.5% MEM:12.8% DISK_USED:1.0%
+[2026-10-16 01:23:02] PID:258 CPU:4.2% MEM:11.0% DISK_USED:1.0%
+```
+
+확인 전 393줄보다 로그 행 수가 늘었고, 매분 예약 실행 시각의 기록이 추가되었습니다. 위 대기 구간에는 수동 모니터링을 실행하지 않았습니다.
+
+## 재시작 및 로그 보존
+
+```bash
+docker compose restart server
+docker compose up --wait
+docker compose exec server bash
+date -Is; ps -C agent-app -o user,pid,args; head -n 15 /var/log/agent-app/agent-app.out; ufw status; crontab -u agent-admin -l
+```
+
+```text
+2026-10-16T01:24:42+00:00
+USER       PID COMMAND
+agent-a+   384 /run/rosetta/rosetta /home/agent-admin/agent-app/agent-app /home/agent-admin/agent-app/agent-app
+agent-a+   385 /run/rosetta/rosetta /home/agent-admin/agent-app/agent-app /home/agent-admin/agent-app/agent-app
+>>> Starting Agent Boot Sequence...
+[1/5] Checking User Account               [OK]
+   ... Running as service user 'agent-admin' (uid=1001)
+[2/5] Verifying Environment Variables     [OK]
+   ... All required Envs correct
+[3/5] Checking Required Files             [OK]
+   ... Verified 'secret.key' with correct key string.
+[4/5] Checking Port Availability          [OK]
+   ... Port 15034 is available.
+[5/5] Verifying Log Permission            [OK]
+   ... Log directory is writable: /var/log/agent-app
+------------------------------------------------------------
+All Boot Checks Passed!
+Agent READY
+2026-10-16 01:24:03,619 [INFO] [SafetyGuard] Process priority lowered (nice=10).
+Status: active
+
+To                         Action      From
+--                         ------      ----
+20022/tcp                  ALLOW       Anywhere
+15034/tcp                  ALLOW       Anywhere
+20022/tcp (v6)             ALLOW       Anywhere (v6)
+15034/tcp (v6)             ALLOW       Anywhere (v6)
+
+* * * * * /home/agent-admin/agent-app/bin/monitor.sh >> /var/log/agent-app/cron.log 2>&1
+```
+
+재시작 전 마지막 로그가 재시작 후에도 보존되어 있습니다.
+
+```text
+[2026-10-16 01:23:02] PID:258 CPU:4.2% MEM:11.0% DISK_USED:1.0%
+```
+
+## 로컬 PC의 공개 포트 연결
+
+컨테이너 재시작 후 로컬 PC에서 실행했습니다.
+
+```bash
+nc -vz -w 3 127.0.0.1 15034
+nc -vz -w 3 127.0.0.1 20022
+```
+
+```text
+Connection to 127.0.0.1 port 15034 [tcp/*] succeeded!
+Connection to 127.0.0.1 port 20022 [tcp/*] succeeded!
+```
