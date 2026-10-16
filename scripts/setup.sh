@@ -3,19 +3,36 @@ set -euo pipefail
 
 cd /opt/agent-lab
 
+# 계정·그룹 구성
+# 그룹 목록 순회 및 미생성 그룹 생성
 for group in agent-common agent-core; do
   getent group "$group" >/dev/null || groupadd "$group"
 done
+
+# 계정 목록 순회 및 홈 디렉토리·Bash 셸을 포함한 미생성 계정 생성
 for user in agent-admin agent-dev agent-test; do
   id -u "$user" >/dev/null 2>&1 || useradd -m -s /bin/bash "$user"
 done
+
+# -G를 통한 계정별 보조 그룹 전체 목록 지정
+# 관리자·개발자의 핵심 영역 접근 및 테스트 계정의 공용 영역 접근 구성
 usermod -G agent-common,agent-core agent-admin
 usermod -G agent-common,agent-core agent-dev
 usermod -G agent-common agent-test
 
-install -d -o agent-admin -g agent-core -m 2770 "$AGENT_HOME" "$AGENT_KEY_PATH" "$AGENT_LOG_DIR"
+# 디렉토리 접근 권한과 새 파일의 그룹·권한 상속 설정
+# 2xxx의 setgid 비트를 통한 하위 항목의 부모 디렉토리 그룹 상속
+install -d -o agent-admin -g agent-core -m 2770 \
+  "$AGENT_HOME" \
+  "$AGENT_KEY_PATH" \
+  "$AGENT_LOG_DIR"
+
 install -d -o agent-admin -g agent-common -m 2770 "$AGENT_UPLOAD_DIR"
+
+# agent-dev 소유 및 agent-core 읽기·실행 전용 관제 스크립트 디렉토리 구성
 install -d -o agent-dev -g agent-core -m 2750 "$AGENT_HOME/bin"
+
+# agent-common 구성원의 upload_files 접근을 위한 상위 경로 통과 권한 부여
 setfacl -m g:agent-common:--x /home/agent-admin "$AGENT_HOME"
 
 # 기존 확장 ACL 제거 및 새 항목의 소유자·그룹 rwx, 그 외 사용자 --- 권한 상속
@@ -73,6 +90,7 @@ mkdir -p /run/sshd
 ssh-keygen -A
 sshd -t
 
+# 인바운드 기본 차단 및 SSH·앱 포트 허용
 ufw --force reset
 ufw default deny incoming
 ufw default allow outgoing
@@ -80,5 +98,7 @@ ufw allow 20022/tcp
 ufw allow 15034/tcp
 ufw --force enable
 
+# agent-admin 계정으로 매분 모니터링 실행
+# agent-admin crontab 등록 및 전체 실행 출력의 cron.log 누적
 printf '* * * * * %s/bin/monitor.sh >> %s/cron.log 2>&1\n' \
   "$AGENT_HOME" "$AGENT_LOG_DIR" | crontab -u agent-admin -
