@@ -3,7 +3,7 @@ name: b4-1
 services:
   server:
     build: .
-    platform: ${AGENT_PLATFORM:-linux/amd64}
+    platform: linux/amd64
     container_name: b4-1-server
     init: true
     cap_add: [NET_ADMIN]
